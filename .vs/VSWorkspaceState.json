@@ -1,0 +1,14 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\microservice.mess",
+    "\\microservice.mess\\Controllers",
+    "\\microservice.mess\\Hubs",
+    "\\microservice.mess\\Middleware",
+    "\\microservice.mess\\Models",
+    "\\microservice.mess\\Properties",
+    "\\microservice.mess\\Repositories",
+    "\\microservice.mess\\Services"
+  ],
+  "PreviewInSolutionExplorer": false
+}

@@ -1,0 +1,85 @@
+{
+  "Infomation": {
+    "SettingName": "global.setting.json"
+  },
+  "jwt": {
+    "Secret": "9095a623-a23a-481a-aa0c-e0ad96edc103",
+    "ExpiryMinutes": 60
+  },
+  "Databases": {
+    "ORACLE": {
+      "DHUB_TRANS": {
+        "ConnectionString": "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP) (HOST=10.20.0.200)(PORT=1521))) (CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=ORCL))); User Id=DHUB_TRANS;Password=DHUB_TRANS;",
+        "SchemaName": "DHUB_TRANS"
+      },
+      "DHUB_GOVERNANCE": {
+        "ConnectionString": "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP) (HOST=10.20.0.200)(PORT=1521))) (CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=ORCL))); User Id=DHUB_GOVERNANCE;Password=DHUB_GOVERNANCE;",
+        "SchemaName": "DHUB_GOVERNANCE"
+      },
+      "DHUB_EXTRACT": {
+        "ConnectionString": "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP) (HOST=10.20.0.200)(PORT=1521))) (CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=ORCL))); User Id=DHUB_EXTRACT;Password=DHUB_EXTRACT;",
+        "SchemaName": "DHUB_EXTRACT"
+      },
+      "LDZ_HIS_OWNER": {
+        "ConnectionString": "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP) (HOST=10.20.0.200)(PORT=1521))) (CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=ORCL))); User Id=LDZ_HIS_OWNER;Password=LDZ_HIS_OWNER;",
+        "SchemaName": "LDZ_HIS_OWNER"
+      }
+    }
+  },
+  "Kafka": {
+    "BootstrapServers": "10.20.0.18:29092",
+    "SecurityProtocol": "Plaintext",
+    "EnableSslCertificateVerification": "false",
+    "SslCaLocation": "",
+    "SslCertificateLocation": "",
+    "SslKeyLocation": "",
+    "SslKeyPassword": "",
+    "GroupId": "DHUB.INTEGRATION"
+  },
+  "Redis": {
+    "Host": "10.20.0.12",
+    "Port": "6379",
+    "PassWord": ""
+  },
+  "Storage": {
+    "UrlGetUpload": "http://10.20.0.15:9001",
+    "BucketName": "data-hub",
+    "AccessKey": "WfHLoYs4BVziMNkXeGxD",
+    "SecretKey": "ZPtiWO25mPG60Ee02AtZ7pND1lyWTkYpQoaSCNQy",
+    "Type": "upload"
+  },
+  "SSO": {
+    "OAuth2_Url": "https://10.20.0.200:8443",
+    "Endpoint": {
+      "AuthUri": "/auth/realms/{0}/protocol/openid-connect/auth",
+      "AccessTokenUri": "/auth/realms/{0}/protocol/openid-connect/token",
+      "UserInfoUri": "/auth/admin/realms/{0}/users"
+    },
+    "UserName": "sso_admin",
+    "PassWord": "sso_admin",
+    "ClientId": "admin-cli",
+    "Realms": "master",
+    "ClientSecret": "859ad950-14f2-4b2e-aab7-9da8f88043e3"
+  },
+  "STMP": {
+    "StmpClient": "smtp.gmail.com",
+    "Port": "587",
+    "From": "minh.dev.30@gmail.com",
+    "Password": "udbx eofk wwya limd"
+  },
+  "ZALO": {
+    "app_id": "2705021400201909966",
+    "oa_id": "4606516489169499369",
+    "redirect_uri": "https://c740-101-99-6-230.ngrok-free.app/zalo/callback",
+    "secret_key": "pG41w9YDMLQzrKEL0LfM",
+    "grant_type": "authorization_code",
+    "state": "Datahub@2025",
+    "code_verifier": "",
+    "code_challenge": ""
+  },
+  "MongoSettings": {
+    "ConnectionString": "mongodb://localhost:27017",
+    "ZaloDatabase": "zalo_db",
+    "NotificationDatabase": "messaging"
+}
+}

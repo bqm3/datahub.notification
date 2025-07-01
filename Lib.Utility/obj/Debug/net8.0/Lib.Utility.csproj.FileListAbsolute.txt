@@ -1,0 +1,15 @@
+C:\Apollo\Code\Datahub.mess\Lib.Utility\bin\Debug\net8.0\Lib.Utility.deps.json
+C:\Apollo\Code\Datahub.mess\Lib.Utility\bin\Debug\net8.0\Lib.Utility.dll
+C:\Apollo\Code\Datahub.mess\Lib.Utility\bin\Debug\net8.0\Lib.Utility.pdb
+C:\Apollo\Code\Datahub.mess\Lib.Utility\bin\Debug\net8.0\Lib.Setting.dll
+C:\Apollo\Code\Datahub.mess\Lib.Utility\bin\Debug\net8.0\Lib.Setting.pdb
+C:\Apollo\Code\Datahub.mess\Lib.Utility\obj\Debug\net8.0\Lib.Utility.csproj.AssemblyReference.cache
+C:\Apollo\Code\Datahub.mess\Lib.Utility\obj\Debug\net8.0\Lib.Utility.GeneratedMSBuildEditorConfig.editorconfig
+C:\Apollo\Code\Datahub.mess\Lib.Utility\obj\Debug\net8.0\Lib.Utility.AssemblyInfoInputs.cache
+C:\Apollo\Code\Datahub.mess\Lib.Utility\obj\Debug\net8.0\Lib.Utility.AssemblyInfo.cs
+C:\Apollo\Code\Datahub.mess\Lib.Utility\obj\Debug\net8.0\Lib.Utility.csproj.CoreCompileInputs.cache
+C:\Apollo\Code\Datahub.mess\Lib.Utility\obj\Debug\net8.0\Lib.Util.327E715C.Up2Date
+C:\Apollo\Code\Datahub.mess\Lib.Utility\obj\Debug\net8.0\Lib.Utility.dll
+C:\Apollo\Code\Datahub.mess\Lib.Utility\obj\Debug\net8.0\refint\Lib.Utility.dll
+C:\Apollo\Code\Datahub.mess\Lib.Utility\obj\Debug\net8.0\Lib.Utility.pdb
+C:\Apollo\Code\Datahub.mess\Lib.Utility\obj\Debug\net8.0\ref\Lib.Utility.dll

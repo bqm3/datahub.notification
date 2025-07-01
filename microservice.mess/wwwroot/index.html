@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Realtime Notification</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/notify/0.4.2/notify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+</head>
+<body>
+    <h2>Notification realtime</h2>
+    <ul id="notifications"></ul>
+
+    <script>
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("https://c740-101-99-6-230.ngrok-free.app/notificationHub")
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
+
+        // Định nghĩa nhận message từ server
+        connection.on("DispatchMessage", message => {
+            console.log("Received:", message);
+            $("#notifications").append(`<li>${message}</li>`);
+            $.notify(message, "success");
+        });
+
+        connection.start()
+            .then(() => {
+                console.log("Connected to SignalR Hub");
+            })
+            .catch(err => console.error("Connection error:", err));
+    </script>
+</body>
+</html>

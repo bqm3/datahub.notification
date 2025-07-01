@@ -1,0 +1,12 @@
+C:\Apollo\Code\Datahub.mess\Lib.Setting\bin\Debug\net8.0\Lib.Setting.deps.json
+C:\Apollo\Code\Datahub.mess\Lib.Setting\bin\Debug\net8.0\Lib.Setting.dll
+C:\Apollo\Code\Datahub.mess\Lib.Setting\bin\Debug\net8.0\Lib.Setting.pdb
+C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\Lib.Setting.csproj.AssemblyReference.cache
+C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\Lib.Setting.GeneratedMSBuildEditorConfig.editorconfig
+C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\Lib.Setting.AssemblyInfoInputs.cache
+C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\Lib.Setting.AssemblyInfo.cs
+C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\Lib.Setting.csproj.CoreCompileInputs.cache
+C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\Lib.Setting.dll
+C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\refint\Lib.Setting.dll
+C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\Lib.Setting.pdb
+C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\ref\Lib.Setting.dll
