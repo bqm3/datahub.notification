@@ -13,7 +13,7 @@ namespace microservice.mess.Services
     public SlackService(HttpClient httpClient, IConfiguration configuration)
     {
         _httpClient = httpClient;
-        _webhookUrl = configuration["Slack:WebhookUrl"]; // lưu trong appsettings.json
+        _webhookUrl = configuration["Slack:WebhookUrl"]; 
     }
 
     public async Task SendMessageAsync(string message)

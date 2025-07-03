@@ -15,6 +15,7 @@ using Lib.Utility;
 
 using microservice.mess.Services;
 using microservice.mess.Models;
+using microservice.mess.Models.Message;
 using microservice.mess.Repositories;
 using microservice.mess.Configurations;
 
@@ -26,9 +27,11 @@ namespace microservice.mess.Kafka
         private readonly ZaloService _zaloService;
         private readonly ZaloEventRepository _zaloEventRepository;
         private readonly ZaloPromotionRepository _zaloPromotionRepository;
-        private readonly GroupMemberRepository _groupMemberRepository;
-        private readonly TokenRepository _tokenRepository;
+        private readonly ZaloMemberRepository _zaloMemberRepository;
+        private readonly ZaloTokenRepository _zaloTokenRepository;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly LogMessageRepository _logMessageRepository;
+        private readonly KafkaProducerService _kafkaProducer;
         private readonly ZaloSettings _zaloSettings;
         private readonly ILogger<ZaloKafkaConsumer> _logger;
 
@@ -39,20 +42,24 @@ namespace microservice.mess.Kafka
             ZaloService zaloService,
             ZaloEventRepository zaloEventRepository,
             ZaloPromotionRepository zaloPromotionRepository,
-            GroupMemberRepository groupMemberRepository,
-            TokenRepository tokenRepository,
+            ZaloMemberRepository ZaloMemberRepository,
+            ZaloTokenRepository ZaloTokenRepository,
             IHttpClientFactory httpClientFactory,
             IOptions<ZaloSettings> zaloOptions,
-            ILogger<ZaloKafkaConsumer> logger)
+            ILogger<ZaloKafkaConsumer> logger,
+            LogMessageRepository logMessageRepository,
+            KafkaProducerService kafkaProducer)
         {
             _zaloService = zaloService;
             _zaloEventRepository = zaloEventRepository;
             _zaloPromotionRepository = zaloPromotionRepository;
-            _groupMemberRepository = groupMemberRepository;
-            _tokenRepository = tokenRepository;
+            _zaloMemberRepository = ZaloMemberRepository;
+            _zaloTokenRepository = ZaloTokenRepository;
             _httpClientFactory = httpClientFactory;
             _zaloSettings = zaloOptions.Value;
             _logger = logger;
+            _logMessageRepository = logMessageRepository;
+            _kafkaProducer = kafkaProducer;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -74,15 +81,27 @@ namespace microservice.mess.Kafka
                 try
                 {
                     var result = consumer.Consume(cancellationToken);
-                    var message = JsonConvert.DeserializeObject<NotificationKafkaEnvelope>(result.Message.Value);
+                    // var message = JsonConvert.DeserializeObject<NotificationKafkaEnvelope>(result.Message.Value);
+                    // _logger.LogWarning("Raw Kafka message: {message}", result.Message.Value);
 
-                    if (message == null || string.IsNullOrEmpty(message.Action))
+
+                    // if (message == null || string.IsNullOrEmpty(message.Action))
+                    // {
+                    //     _logger.LogWarning("Received empty or invalid message.");
+                    //     continue;
+                    // }
+
+                    // await ProcessMessageAsync(JsonConvert.SerializeObject(message));
+                    var message = JsonConvert.DeserializeObject<MessageRequest>(result.Message.Value);
+
+                    if (message == null || string.IsNullOrEmpty(message.Headers.Action))
                     {
                         _logger.LogWarning("Received empty or invalid message.");
                         continue;
                     }
 
-                    await ProcessMessageAsync(JsonConvert.SerializeObject(message));
+                    await ProcessMessageAsync(message);
+
 
                 }
                 catch (OperationCanceledException)
@@ -99,69 +118,92 @@ namespace microservice.mess.Kafka
             consumer.Close();
         }
 
-        private async Task ProcessMessageAsync(string jsonMessage)
+        private async Task ProcessMessageAsync(MessageRequest message)
         {
             try
             {
-                var envelope = JsonConvert.DeserializeObject<NotificationKafkaEnvelope>(jsonMessage);
-                if (envelope == null || string.IsNullOrWhiteSpace(envelope.Action))
+                var action = message.Headers?.Action?.ToLower() ?? "";
+                var bodyItem = message.Body?.FirstOrDefault();
+
+                if (bodyItem == null)
                 {
-                    _logger.LogWarning("Envelope or Action is null.");
+                    _logger.LogWarning("Message body is empty.");
                     return;
                 }
 
-                switch (envelope.Action.ToLower())
+                var zalo = bodyItem.Zalo;
+                if (zalo == null)
+                {
+                    _logger.LogWarning("Zalo payload is missing.");
+                    return;
+                }
+
+                switch (action)
                 {
                     case "create-promotion":
-                        var createRequest = JsonConvert.DeserializeObject<ZaloPromotionRequest>(envelope.Payload);
-                        if (createRequest == null)
+                        if (zalo.PromotionRequest == null)
                         {
-                            _logger.LogWarning("Invalid create-promotion payload.");
+                            _logger.LogWarning("Missing PromotionRequest.");
                             return;
                         }
 
-                        var existing = await _zaloPromotionRepository.GetPromotionByIdAsync(createRequest.Tag);
-                        if (existing != null)
-                        {
-                            _logger.LogWarning("Promotion with tag '{tag}' already exists.", createRequest.Tag);
-                            return;
-                        }
+                        // var existing = await _zaloPromotionRepository.GetPromotionByTagAsync(zalo.PromotionRequest.Tag);
+                        // if (existing != null)
+                        // {
+                        //     string errorMsg = $"Promotion with tag '{zalo.PromotionRequest.Tag}' already exists.";
+                        //     _logger.LogWarning(errorMsg);
 
-                        await _zaloPromotionRepository.InsertOneAsync(createRequest);
-                        _logger.LogInformation("Created promotion with tag '{tag}'", createRequest.Tag);
+                        //     await _logMessageRepository.InsertErrorAsync(new MessageErrorLog
+                        //     {
+                        //         Error = errorMsg,
+                        //         RawPayload = JsonConvert.SerializeObject(zalo),
+                        //         CreatedAt = DateTime.UtcNow
+                        //     });
+
+                        //     await _kafkaProducer.SendMessageAsync("topic-zalo-error", null, JsonConvert.SerializeObject(zalo));
+
+                        //     return;
+                        // }
+
+
+                        await _zaloPromotionRepository.InsertOrUpdateByTagAsync(zalo.PromotionRequest);
                         break;
-
 
                     case "send-promotion":
-                        var sendPayload = JsonConvert.DeserializeObject<Dictionary<string, string>>(envelope.Payload);
-                        if (!sendPayload.TryGetValue("tag", out var tag) || !sendPayload.TryGetValue("accessToken", out var token))
+                        if (string.IsNullOrEmpty(zalo.AccessToken) || string.IsNullOrEmpty(zalo.UserId))
                         {
-                            _logger.LogWarning("Missing tag or accessToken in send-promotion.");
+                            _logger.LogWarning("Missing accessToken or userId.");
                             return;
                         }
 
-                        var promotion = await _zaloPromotionRepository.GetPromotionByIdAsync(tag);
+                        if (zalo.SendMessagePayload == null)
+                        {
+                            _logger.LogWarning("Missing SendMessagePayload.");
+                            return;
+                        }
+
+                        var promotion = await _zaloPromotionRepository.GetPromotionByTagAsync(zalo.PromotionRequest.Tag);
                         if (promotion == null)
                         {
-                            _logger.LogWarning("No promotion found for tag '{tag}'", tag);
+                            _logger.LogWarning("No promotion found for tag '{tag}'", zalo.PromotionRequest.Tag);
                             return;
                         }
 
-                        // await _zaloService.HandleSendPromotionAsync(promotion, token);
+                        // await _zaloService.HandleSendPromotionAsync(promotion, zalo.AccessToken);
                         break;
 
-                    case "callback":
-                        var callbackRequest = JsonConvert.DeserializeObject<ZaloCallbackRequest>(envelope.Payload);
-                        if (callbackRequest == null)
-                        {
-                            _logger.LogWarning("Invalid callback payload.");
-                            return;
-                        }
-                        await _zaloService.ProcessCallback(callbackRequest);
-                        break;
+                    // case "callback":
+                    //     if (zalo.CallbackRequest == null)
+                    //     {
+                    //         _logger.LogWarning("Missing CallbackRequest.");
+                    //         return;
+                    //     }
+
+                    //     await _zaloService.ProcessCallback(zalo.CallbackRequest);
+                    //     break;
 
                     default:
-                        _logger.LogWarning("Unsupported action: {action}", envelope.Action);
+                        _logger.LogWarning("Unsupported action: {action}", action);
                         break;
                 }
             }
@@ -171,6 +213,78 @@ namespace microservice.mess.Kafka
             }
         }
 
-        
+
+        // private async Task ProcessMessageAsync(string jsonMessage)
+        // {
+        //     try
+        //     {
+        //         var envelope = JsonConvert.DeserializeObject<NotificationKafkaEnvelope>(jsonMessage);
+        //         if (envelope == null || string.IsNullOrWhiteSpace(envelope.Action))
+        //         {
+        //             _logger.LogWarning("Envelope or Action is null.");
+        //             return;
+        //         }
+
+        //         switch (envelope.Action.ToLower())
+        //         {
+        //             case "create-promotion":
+        //                 var createRequest = JsonConvert.DeserializeObject<ZaloPromotionRequest>(envelope.Payload);
+        //                 if (createRequest == null)
+        //                 {
+        //                     _logger.LogWarning("Invalid create-promotion payload.");
+        //                     return;
+        //                 }
+
+        //                 var existing = await _zaloPromotionRepository.GetPromotionByTagAsync(createRequest.Tag);
+        //                 if (existing != null)
+        //                 {
+        //                     _logger.LogWarning("Promotion with tag '{tag}' already exists.", createRequest.Tag);
+        //                     return;
+        //                 }
+
+        //                 await _zaloPromotionRepository.InsertOrUpdateByTagAsync(createRequest);
+        //                 _logger.LogInformation("Created promotion with tag '{tag}'", createRequest.Tag);
+        //                 break;
+
+        //             case "send-promotion":
+        //                 var sendPayload = JsonConvert.DeserializeObject<Dictionary<string, string>>(envelope.Payload);
+        //                 if (!sendPayload.TryGetValue("tag", out var tag) || !sendPayload.TryGetValue("accessToken", out var token))
+        //                 {
+        //                     _logger.LogWarning("Missing tag or accessToken in send-promotion.");
+        //                     return;
+        //                 }
+
+        //                 var promotion = await _zaloPromotionRepository.GetPromotionByTagAsync(tag);
+        //                 if (promotion == null)
+        //                 {
+        //                     _logger.LogWarning("No promotion found for tag '{tag}'", tag);
+        //                     return;
+        //                 }
+
+        //                 // await _zaloService.HandleSendPromotionAsync(promotion, token);
+        //                 break;
+
+        //             case "callback":
+        //                 var callbackRequest = JsonConvert.DeserializeObject<ZaloCallbackRequest>(envelope.Payload);
+        //                 if (callbackRequest == null)
+        //                 {
+        //                     _logger.LogWarning("Invalid callback payload.");
+        //                     return;
+        //                 }
+        //                 await _zaloService.ProcessCallback(callbackRequest);
+        //                 break;
+
+        //             default:
+        //                 _logger.LogWarning("Unsupported action: {action}", envelope.Action);
+        //                 break;
+        //         }
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error processing message.");
+        //     }
+        // }
+
+
     }
 }

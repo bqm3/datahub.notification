@@ -6,6 +6,7 @@ C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\Lib.Setting.GeneratedMS
 C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\Lib.Setting.AssemblyInfoInputs.cache
 C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\Lib.Setting.AssemblyInfo.cs
 C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\Lib.Setting.csproj.CoreCompileInputs.cache
+C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\Lib.Setting.sourcelink.json
 C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\Lib.Setting.dll
 C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\refint\Lib.Setting.dll
 C:\Apollo\Code\Datahub.mess\Lib.Setting\obj\Debug\net8.0\Lib.Setting.pdb

@@ -4,10 +4,8 @@ using microservice.mess.Configurations;
 using microservice.mess.Repositories;
 using microservice.mess.Interfaces;
 using microservice.mess.Hubs;
-using microservice.mess.Hubs.Handler;
 using Microsoft.OpenApi.Models;
 using microservice.mess.Services;
-using microservice.mess.Cronjobs;
 using microservice.mess.Kafka;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,33 +21,35 @@ builder.Services.AddSingleton<IMongoClient>(sp =>
 });
 builder.Services.Configure<MongoSettings>(builder.Configuration.GetSection("MongoSettings"));
 
-builder.Services.AddHostedService<ScheduledPromotionBackgroundService>();
-
-
 // Cấu hình các dịch vụ khác
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("STMP"));
 builder.Services.Configure<ZaloSettings>(builder.Configuration.GetSection("ZALO"));
 
-builder.Services.AddScoped<TokenRepository>();
-builder.Services.AddScoped<ScheduledPromotionSender>();
-
+builder.Services.AddScoped<ZaloTokenRepository>();
 builder.Services.AddScoped<ZaloEventRepository>();
-builder.Services.AddScoped<GroupMemberRepository>();
+builder.Services.AddScoped<LogMessageRepository>();
+builder.Services.AddScoped<ZaloMemberRepository>();
 builder.Services.AddScoped<ZaloPromotionRepository>();
+builder.Services.AddSingleton<ScheduledEmailRepository>();
+
+builder.Services.AddScoped<MailRepository>();
 builder.Services.AddScoped<MailService>();
 builder.Services.AddScoped<ZaloService>();
-builder.Services.AddHttpClient<SlackService>();
 builder.Services.AddScoped<SignalRService>();
 builder.Services.AddScoped<KafkaProducerService>();
-builder.Services.AddScoped<INotificationChannelHandler, MailChannelHandler>();
+builder.Services.AddScoped<SlackService>();
+
+builder.Services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
+builder.Services.AddSingleton<ILogMessageRepository, LogMessageRepository>();
 
 //kafka
 builder.Services.AddHostedService<ZaloKafkaConsumerHostedService>();
 builder.Services.AddHostedService<MailKafkaConsumerHostedService>();
-
+// scheduler mail
+builder.Services.AddHostedService<MailSchedulerService>();
 //http client
 builder.Services.AddHttpClient();
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddNewtonsoftJson();;
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -77,6 +77,21 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
     serverOptions.ListenAnyIP(5237); // HTTP
     serverOptions.ListenAnyIP(7225, listenOptions => listenOptions.UseHttps()); // HTTPS
 });
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins(
+            "https://5225-101-99-6-230.ngrok-free.app", 
+            "https://localhost:7225"
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials(); 
+    });
+});
+builder.Configuration.AddJsonFile("config/global/global.setting.json", optional: false, reloadOnChange: true);
 
 // builder.Services.AddSingleton(provider =>
 //     {

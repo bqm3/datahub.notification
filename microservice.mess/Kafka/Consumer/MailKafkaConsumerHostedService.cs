@@ -30,17 +30,18 @@ namespace microservice.mess.Kafka
                 var mailService = scope.ServiceProvider.GetRequiredService<MailService>();
                 var httpClientFactory = scope.ServiceProvider.GetRequiredService<IHttpClientFactory>();
                 var smtpOptions = scope.ServiceProvider.GetRequiredService<IOptions<SmtpSettings>>();
-                var signalRService = scope.ServiceProvider.GetRequiredService<SignalRService>();
                 var logger = scope.ServiceProvider.GetRequiredService<ILogger<MailKafkaConsumer>>();
+                var logMessageRepository = scope.ServiceProvider.GetRequiredService<LogMessageRepository>();
+                var kafkaProducer = scope.ServiceProvider.GetRequiredService<KafkaProducerService>();
 
                 var consumer = new MailKafkaConsumer(
                     mailService,
-                    signalRService,
                     httpClientFactory,
                     smtpOptions,
-                    logger
+                    logger,
+                    logMessageRepository,
+                    kafkaProducer
                 );
-
 
                 await consumer.StartAsync(stoppingToken);
             }, stoppingToken);

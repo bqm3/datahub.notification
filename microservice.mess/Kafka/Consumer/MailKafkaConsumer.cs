@@ -15,6 +15,7 @@ using Lib.Utility;
 
 using microservice.mess.Services;
 using microservice.mess.Models;
+using microservice.mess.Models.Message;
 using microservice.mess.Repositories;
 using microservice.mess.Configurations;
 
@@ -27,26 +28,26 @@ namespace microservice.mess.Kafka
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly SmtpSettings _smtpSettings;
         private readonly ILogger<MailKafkaConsumer> _logger;
-
+        private readonly LogMessageRepository _logMessageRepository;
+        private readonly KafkaProducerService _kafkaProducer;
         private readonly string _bootstrapServers = "host.docker.internal:9092";
         private readonly string _topic = "topic-mail";
 
-        private readonly SignalRService _signalRService;
-
         public MailKafkaConsumer(
             MailService mailService,
-            SignalRService signalRService,
             IHttpClientFactory httpClientFactory,
             IOptions<SmtpSettings> stmpOptions,
-            ILogger<MailKafkaConsumer> logger)
+            ILogger<MailKafkaConsumer> logger,
+            LogMessageRepository logMessageRepository,
+            KafkaProducerService kafkaProducer)
         {
             _mailService = mailService;
-            _signalRService = signalRService;
             _httpClientFactory = httpClientFactory;
             _smtpSettings = stmpOptions.Value;
             _logger = logger;
+            _logMessageRepository = logMessageRepository;
+            _kafkaProducer = kafkaProducer;
         }
-
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
@@ -60,23 +61,23 @@ namespace microservice.mess.Kafka
             using var consumer = new ConsumerBuilder<Ignore, string>(config).Build();
             consumer.Subscribe(_topic);
 
-            _logger.LogInformation("Mail Kafka Consumer started...");
-
             while (!cancellationToken.IsCancellationRequested)
             {
+                var result = consumer.Consume(cancellationToken);
+                string payload = result?.Message?.Value;
                 try
                 {
-                    var result = consumer.Consume(cancellationToken);
-                    var message = JsonConvert.DeserializeObject<NotificationKafkaEnvelope>(result.Message.Value);
 
-                    if (message == null || string.IsNullOrEmpty(message.Action))
+                    _logger.LogInformation("Received Kafka message: {message}", payload);
+                    var message = JsonConvert.DeserializeObject<MessageRequest>(payload);
+
+                    if (message == null || message.Headers == null || message.Body == null)
                     {
-                        _logger.LogWarning("Received empty or invalid message.");
-                        continue;
+                        _logger.LogWarning("Envelope/Headers/Body is null.");
+                        return;
                     }
 
-                    await ProcessMessageAsync(result.Message.Value);
-
+                    await ProcessMessageAsync(payload);
                 }
                 catch (OperationCanceledException)
                 {
@@ -85,8 +86,18 @@ namespace microservice.mess.Kafka
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error processing Kafka message.");
+                    _logger.LogWarning(ex, "Xử lý message mail thất bại");
+
+                    await _logMessageRepository.InsertErrorAsync(new MessageErrorLog
+                    {
+                        Error = ex.ToString(),
+                        RawPayload = payload,
+                        CreatedAt = DateTime.UtcNow
+                    });
+
+                    await _kafkaProducer.SendMessageAsync("topic-mail-error", null, payload);
                 }
+
             }
 
             consumer.Close();
@@ -96,38 +107,32 @@ namespace microservice.mess.Kafka
         {
             try
             {
-                var envelope = JsonConvert.DeserializeObject<NotificationKafkaEnvelope>(jsonMessage);
-                if (envelope == null || string.IsNullOrWhiteSpace(envelope.Action))
+                var envelope = JsonConvert.DeserializeObject<MessageRequest>(jsonMessage);
+                _logger.LogInformation("Envelope/Headers/Body is null. {jsonMessage}", jsonMessage);
+                if (envelope == null || envelope.Headers == null || envelope.Body == null)
                 {
-                    _logger.LogWarning("Envelope or Action is null.");
+                    _logger.LogWarning("Envelope/Headers/Body is null.");
                     return;
                 }
 
-                switch (envelope.Action.ToLower())
+                var action = envelope.Headers.Action;
+
+                _logger.LogInformation("Processing message with action: {action}", action);
+
+                if (action?.ToLower() == "send-mail-tag")
                 {
-                    case "send-mail":
-                        var createRequest = JsonConvert.DeserializeObject<MailPayload>(envelope.Payload);
-                        if (createRequest == null)
+                    foreach (var item in envelope.Body)
+                    {
+                        if (item.Email != null)
                         {
-                            _logger.LogWarning("Invalid send-mail payload.");
-                            return;
+                            await _mailService.SendEmailAsync(item.Email);
+
                         }
-
-                        await _mailService.SendEmailAsync(createRequest.To, createRequest.Subject, createRequest.Body);
-                        await _signalRService.SendToAllAsync(JsonConvert.SerializeObject(new
-                        {
-                            channel = "mail",
-                            status = "success",
-                            to = createRequest.To,
-                            subject = createRequest.Subject
-                        }));
-
-                        break;
-
-
-                    default:
-                        _logger.LogWarning("Unsupported action: {action}", envelope.Action);
-                        break;
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("Unsupported action: {action}", action);
                 }
             }
             catch (Exception ex)
@@ -135,7 +140,5 @@ namespace microservice.mess.Kafka
                 _logger.LogError(ex, "Error processing message.");
             }
         }
-
-
     }
 }

@@ -4,11 +4,11 @@ using microservice.mess.Models;
 using microservice.mess.Configurations;
 namespace microservice.mess.Repositories
 {
-    public class GroupMemberRepository
+    public class ZaloMemberRepository
     {
         private readonly IMongoCollection<GroupMember> _collection;
 
-        public GroupMemberRepository(IMongoClient client, IOptions<MongoSettings> mongoOptions)
+        public ZaloMemberRepository(IMongoClient client, IOptions<MongoSettings> mongoOptions)
         {
             var settings = mongoOptions.Value;
             var database = client.GetDatabase(settings.ZaloDatabase);

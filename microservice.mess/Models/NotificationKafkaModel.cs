@@ -5,11 +5,12 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace microservice.mess.Models
 {
-    public class NotificationKafkaEnvelope
+   public class NotificationKafkaEnvelope
     {
         public string Action { get; set; }
-        public string Payload { get; set; }
-        public string[] Channels { get; set; }
+        public string MessageType { get; set; }
+        public string CreatedAt { get; set; }
+        public string Payload { get; set; } 
     }
 
     public class ZaloCallbackRequest
@@ -24,12 +25,9 @@ namespace microservice.mess.Models
         [BsonId]
         [BsonRepresentation(BsonType.String)]
         public string Id { get; set; } = Guid.NewGuid().ToString();
-
         public string? UserId { get; set; }
         public string? AccessToken { get; set; }
-
         public string Tag { get; set; }
-
         public List<ZaloElement> Elements { get; set; } = new();
         public List<ZaloButton> Buttons { get; set; } = new();
     }
@@ -40,6 +38,7 @@ namespace microservice.mess.Models
         [BsonRepresentation(BsonType.String)]
         public string Id { get; set; }
 
+        [BsonElement("tag")]
         public string? Tag { get; set; }
 
         [BsonElement("elements")]
@@ -47,6 +46,28 @@ namespace microservice.mess.Models
 
         [BsonElement("buttons")]
         public List<ZaloButtonBson> Buttons { get; set; } = new();
+    }
+     public class ZaloEvent
+    {
+        [BsonId]
+        [BsonRepresentation(BsonType.ObjectId)]
+        public string? Id { get; set; }
+        public string OAId { get; set; }           // ID của OA (sender)
+        public string UserId { get; set; }         // ID người dùng Zalo
+        public string Event { get; set; }         
+        public string MessageType { get; set; }    
+        public string MessageContent { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+    public class ZaloToken
+    {
+        [BsonId]
+        [BsonRepresentation(BsonType.ObjectId)]
+        public string? Id { get; set; }
+        public string? OAID { get; set; }            // Chính là oa_id
+        public string? AccessToken { get; set; }
+        public string? RefreshToken { get; set; }
+        public DateTime ExpiredAt { get; set; }
     }
 
     public class ZaloButtonBson
@@ -61,7 +82,8 @@ namespace microservice.mess.Models
         [JsonProperty("type")]
         public string Type { get; set; } = string.Empty;
 
-        [JsonProperty("attachment_id", NullValueHandling = NullValueHandling.Ignore)]
+        [BsonElement("attachmentId")]
+        [JsonProperty("attachmentId", NullValueHandling = NullValueHandling.Ignore)]
         public string? AttachmentId { get; set; }
 
         [JsonProperty("content", NullValueHandling = NullValueHandling.Ignore)]
@@ -79,8 +101,7 @@ namespace microservice.mess.Models
         [BsonElement("type")]
         public string Type { get; set; } = string.Empty;
 
-        [BsonElement("attachment_id")]
-        [JsonProperty("attachment_id")]
+        [BsonElement("attachmentId")]
         public string? AttachmentId { get; set; }
 
         [BsonElement("content")]

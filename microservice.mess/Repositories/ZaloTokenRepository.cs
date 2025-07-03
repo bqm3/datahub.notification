@@ -7,17 +7,17 @@ using System.Text.Json;
 
 namespace microservice.mess.Repositories
 {
-    public class TokenRepository
+    public class ZaloTokenRepository
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly ILogger<TokenRepository> _logger;
+        private readonly ILogger<ZaloTokenRepository> _logger;
         private readonly IMongoCollection<ZaloToken> _collection;
         private readonly IConfiguration _configuration;
         private readonly string _appId;
 
-        public TokenRepository(
+        public ZaloTokenRepository(
             IMongoClient mongoClient,
-            ILogger<TokenRepository> logger,
+            ILogger<ZaloTokenRepository> logger,
             IOptions<MongoSettings> settings,
             IHttpClientFactory httpClientFactory,
             IConfiguration configuration,
@@ -54,16 +54,35 @@ namespace microservice.mess.Repositories
             var token = await GetByUserId(oaId);
             if (token == null) throw new Exception("Chưa có token");
 
+            // Nếu token sắp hết hạn (trước 5 phút)
             if (token.ExpiredAt <= DateTime.UtcNow.AddMinutes(5))
             {
+                var url = "https://oauth.zaloapp.com/v4/oa/access_token";
+
                 var client = _httpClientFactory.CreateClient();
-                var response = await client.GetAsync(
-                    $"https://oauth.zalo.me/oauth/v4/refresh_token?app_id={_appId}&grant_type=refresh_token&refresh_token={token.RefreshToken}"
-                );
 
-                var content = await response.Content.ReadAsStringAsync();
-                var newToken = JsonSerializer.Deserialize<ZaloTokenResponse>(content);
+                // Lấy từ cấu hình
+                var secretKey = _configuration["Zalo:SecretKey"];
+                var appId = _configuration["Zalo:AppId"];
+                var grantType = "refresh_token";
 
+                var formContent = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("refresh_token", token.RefreshToken),
+                    new KeyValuePair<string, string>("app_id", appId),
+                    new KeyValuePair<string, string>("grant_type", grantType),
+                });
+
+                client.DefaultRequestHeaders.Clear();
+                client.DefaultRequestHeaders.Add("secret_key", secretKey);
+
+                var response = await client.PostAsync(url, formContent);
+                var responseBody = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                    throw new Exception($"Refresh token failed: {responseBody}");
+
+                var newToken = JsonSerializer.Deserialize<ZaloTokenResponse>(responseBody);
                 if (!string.IsNullOrEmpty(newToken?.access_token))
                 {
                     token.AccessToken = newToken.access_token;
@@ -71,6 +90,10 @@ namespace microservice.mess.Repositories
                     token.ExpiredAt = DateTime.UtcNow.AddSeconds(double.Parse(newToken.expires_in));
 
                     await SaveOrUpdateToken(token);
+                }
+                else
+                {
+                    throw new Exception("access_token trả về null");
                 }
             }
 

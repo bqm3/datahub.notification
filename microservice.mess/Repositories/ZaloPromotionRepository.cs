@@ -9,26 +9,27 @@ namespace microservice.mess.Repositories
     public class ZaloPromotionRepository
     {
         private readonly IMongoCollection<ZaloPromotionBson> _promotionCollection;
-
-        public ZaloPromotionRepository(IMongoClient mongoClient, IOptions<MongoSettings> mongoOptions)
+        private readonly ILogger<ZaloPromotionRepository> _logger;
+        public ZaloPromotionRepository(IMongoClient mongoClient, IOptions<MongoSettings> mongoOptions, ILogger<ZaloPromotionRepository> logger) 
         {
+            _logger = logger;
             var settings = mongoOptions.Value;
             var db = mongoClient.GetDatabase(settings.ZaloDatabase);
             _promotionCollection = db.GetCollection<ZaloPromotionBson>("zalo_promotions");
         }
 
-        private ZaloPromotionBson MapToBson(ZaloPromotionRequest model)
+        public ZaloPromotionBson MapToBson(ZaloPromotionRequest model, string? existingId = null)
         {
             return new ZaloPromotionBson
             {
-                Id = model.Id,
+                Id = existingId ?? model.Id,
                 Tag = model.Tag,
                 Elements = model.Elements?.Select(e => new ZaloElementBson
                 {
                     Type = e.Type,
+                    AttachmentId = e.AttachmentId,
                     Align = e.Align,
                     Content = e.Content,
-                    AttachmentId = e.AttachmentId,
                     ContentTable = e.ContentTable?.Select(ct => new ZaloTableContent
                     {
                         Key = ct.Key,
@@ -44,7 +45,7 @@ namespace microservice.mess.Repositories
                 }).ToList()
             };
         }
-        private ZaloPromotionRequest MapToModel(ZaloPromotionBson bson)
+        public ZaloPromotionRequest MapToModel(ZaloPromotionBson bson)
         {
             return new ZaloPromotionRequest
             {
@@ -53,9 +54,9 @@ namespace microservice.mess.Repositories
                 Elements = bson.Elements?.Select(e => new ZaloElement
                 {
                     Type = e.Type,
+                    AttachmentId = e.AttachmentId,
                     Align = e.Align,
                     Content = e.Content,
-                    AttachmentId = e.AttachmentId,
                     ContentTable = e.ContentTable?.Select(ct => new ZaloTableRow
                     {
                         Key = ct.Key,
@@ -76,33 +77,45 @@ namespace microservice.mess.Repositories
             };
         }
 
-
-        public async Task<ZaloPromotionRequest?> GetPromotionByIdAsync(string id)
+        public async Task<bool> TagExistsAsync(string tag)
         {
-            var bson = await _promotionCollection.Find(x => x.Tag == id).FirstOrDefaultAsync();
+            var count = await _promotionCollection.CountDocumentsAsync(x => x.Tag == tag);
+            return count > 0;
+        }
+
+        public async Task<ZaloPromotionRequest?> GetPromotionByTagAsync(string tag)
+        {
+            var bson = await _promotionCollection.Find(x => x.Tag == tag).FirstOrDefaultAsync();
             return bson == null ? null : MapToModel(bson);
         }
 
-        public async Task InsertOneAsync(ZaloPromotionRequest promotion)
+        public async Task InsertOrUpdateByTagAsync(ZaloPromotionRequest promotion)
         {
-            var bson = MapToBson(promotion);
+            var existing = await _promotionCollection.Find(x => x.Tag == promotion.Tag).FirstOrDefaultAsync();
+
+            var bson = MapToBson(promotion, existing?.Id);
+
             await _promotionCollection.ReplaceOneAsync(
-                filter: Builders<ZaloPromotionBson>.Filter.Eq(x => x.Id, bson.Id),
+                filter: Builders<ZaloPromotionBson>.Filter.Eq(x => x.Tag, bson.Tag),
                 replacement: bson,
                 options: new ReplaceOptions { IsUpsert = true }
             );
         }
 
-        public async Task<bool> UpdatePromotionAsync(string id, ZaloPromotionRequest updatedPromotion)
+        public async Task<bool> UpdatePromotionByTagAsync(string tag, ZaloPromotionRequest updatedPromotion)
         {
-            var bson = MapToBson(updatedPromotion);
-            var result = await _promotionCollection.ReplaceOneAsync(x => x.Id == id, bson);
+            var existing = await _promotionCollection.Find(x => x.Tag == tag).FirstOrDefaultAsync();
+            if (existing == null) return false;
+
+            var bson = MapToBson(updatedPromotion, existing.Id); // giữ nguyên _id cũ
+
+            var result = await _promotionCollection.ReplaceOneAsync(x => x.Tag == tag, bson);
             return result.ModifiedCount > 0;
         }
 
-        public async Task<bool> DeletePromotionAsync(string id)
+        public async Task<bool> DeletePromotionByTagAsync(string tag)
         {
-            var result = await _promotionCollection.DeleteOneAsync(x => x.Id == id);
+            var result = await _promotionCollection.DeleteOneAsync(x => x.Tag == tag);
             return result.DeletedCount > 0;
         }
 

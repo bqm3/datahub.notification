@@ -36,6 +36,8 @@ namespace microservice.mess.Controllers
             var codeVerifier = PkceHelper.GenerateCodeVerifier(); // tạo chuỗi ngẫu nhiên
             var codeChallenge = PkceHelper.GenerateCodeChallenge(codeVerifier); // SHA256 + base64url
 
+            
+
             _logger.LogWarning("code Verifirer {Verifier}", codeVerifier);
             _logger.LogWarning("codeChallenge {Challenge}", codeChallenge);
 

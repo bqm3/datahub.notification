@@ -1,6 +1,7 @@
+// Controllers/NotifyController.cs
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR.Client;
 using microservice.mess.Models.Message;
+using microservice.mess.Interfaces;
 
 namespace microservice.mess.Controllers
 {
@@ -9,10 +10,12 @@ namespace microservice.mess.Controllers
     public class NotifyController : ControllerBase
     {
         private readonly ILogger<NotifyController> _logger;
+        private readonly INotificationDispatcher _dispatcher;
 
-        public NotifyController(ILogger<NotifyController> logger)
+        public NotifyController(ILogger<NotifyController> logger, INotificationDispatcher dispatcher)
         {
             _logger = logger;
+            _dispatcher = dispatcher;
         }
 
         [HttpPost]
@@ -20,24 +23,25 @@ namespace microservice.mess.Controllers
         {
             try
             {
-                var connection = new HubConnectionBuilder()
-                    .WithUrl("https://c740-101-99-6-230.ngrok-free.app/notificationHub")
-                    .WithAutomaticReconnect()
-                    .Build();
+                var headers = await _dispatcher.DispatchMessageAsync(request);
 
-                await connection.StartAsync();
+                if (headers == null)
+                    return BadRequest("Dữ liệu không hợp lệ.");
 
-                await connection.InvokeAsync("DispatchMessage", request);
-
-                await connection.StopAsync();
-
-                return Ok(new { message = "Sent to Hub successfully." });
+                return Ok(new
+                {
+                    message = "Message enqueued successfully.",
+                    code = 200,
+                    headers
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send message to SignalR Hub");
+                _logger.LogError(ex, "Lỗi khi xử lý message");
                 return StatusCode(500, "Internal server error");
             }
         }
+
+
     }
 }

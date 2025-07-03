@@ -30,11 +30,13 @@ namespace microservice.mess.Kafka
                 var zaloService = scope.ServiceProvider.GetRequiredService<ZaloService>();
                 var zaloEventRepo = scope.ServiceProvider.GetRequiredService<ZaloEventRepository>();
                 var zaloPromotionRepo = scope.ServiceProvider.GetRequiredService<ZaloPromotionRepository>();
-                var groupMemberRepo = scope.ServiceProvider.GetRequiredService<GroupMemberRepository>();
-                var tokenRepo = scope.ServiceProvider.GetRequiredService<TokenRepository>();
+                var groupMemberRepo = scope.ServiceProvider.GetRequiredService<ZaloMemberRepository>();
+                var tokenRepo = scope.ServiceProvider.GetRequiredService<ZaloTokenRepository>();
                 var httpClientFactory = scope.ServiceProvider.GetRequiredService<IHttpClientFactory>();
                 var zaloOptions = scope.ServiceProvider.GetRequiredService<IOptions<ZaloSettings>>();
                 var logger = scope.ServiceProvider.GetRequiredService<ILogger<ZaloKafkaConsumer>>();
+                var logMessageRepo = scope.ServiceProvider.GetRequiredService<LogMessageRepository>();
+                var kafkaProducer = scope.ServiceProvider.GetRequiredService<KafkaProducerService>();
 
                 var consumer = new ZaloKafkaConsumer(
                     zaloService,
@@ -44,7 +46,9 @@ namespace microservice.mess.Kafka
                     tokenRepo,
                     httpClientFactory,
                     zaloOptions,
-                    logger
+                    logger,
+                    logMessageRepo,
+                    kafkaProducer
                 );
 
                 await consumer.StartAsync(stoppingToken);

@@ -24,7 +24,7 @@ public class ZaloService
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<ZaloService> _logger;
-    private readonly TokenRepository _tokenRepository;
+    private readonly ZaloTokenRepository _zaloTokenRepository;
     private readonly ZaloSettings _zaloSettings;
     private readonly ZaloPromotionRepository _zaloPromotionRepository;
     public ZaloService(
@@ -32,13 +32,13 @@ public class ZaloService
     ZaloPromotionRepository zaloPromotionRepository,
     IOptions<ZaloSettings> zaloOptions,
     ILogger<ZaloService> logger,
-    TokenRepository tokenRepository)
+    ZaloTokenRepository ZaloTokenRepository)
     {
         _httpClientFactory = factory;
         _zaloPromotionRepository = zaloPromotionRepository;
         _logger = logger;
         _zaloSettings = zaloOptions.Value;
-        _tokenRepository = tokenRepository;
+        _zaloTokenRepository = ZaloTokenRepository;
     }
 
     // Xử lý zalo/callback
@@ -75,7 +75,7 @@ public class ZaloService
 
         var expiredAt = DateTime.UtcNow.AddSeconds(double.TryParse(tokenResponse.expires_in, out var sec) ? sec : 90000);
 
-        await _tokenRepository.SaveOrUpdateToken(new ZaloToken
+        await _zaloTokenRepository.SaveOrUpdateToken(new ZaloToken
         {
             OAID = _zaloSettings.oa_id,
             AccessToken = tokenResponse.access_token,
@@ -84,36 +84,6 @@ public class ZaloService
         });
 
         _logger.LogInformation("Zalo token saved: {user}", tokenResponse.oa_id ?? callback.State);
-    }
-
-    // Tạo gửi bài cho user
-    public async Task HandleSendPromotionAsync(ZaloPromotionRequest payload)
-    {
-        // if (payload == null ||
-        //     string.IsNullOrEmpty(payload.UserId) ||
-        //     string.IsNullOrEmpty(payload.AccessToken) ||
-        //     !payload.Elements.Any())
-        // {
-        //     _logger.LogWarning("Invalid or missing promotion data.");
-        //     return;
-        // }
-
-        try
-        {
-            // await SendPromotionToUser(
-            //     payload.UserId,
-            //     payload.Header,
-            //     payload.Elements,
-            //     payload.AccessToken,
-            //     payload.Buttons,
-            //     payload.BannerAttachmentIds
-            // );
-            _logger.LogInformation("Promotion sent to user: {userId}", payload.UserId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error sending promotion to user: {userId}", payload.UserId);
-        }
     }
 
     public async Task SendZaloMessageAsync(string userId, string message, string accessToken)
@@ -132,38 +102,80 @@ public class ZaloService
 
     public async Task<string> UploadImageToZaloAsync(string imagePath, string accessToken)
     {
-
         var client = _httpClientFactory.CreateClient();
-        client.DefaultRequestHeaders.Clear();
-        client.DefaultRequestHeaders.Add("access_token", accessToken);
 
         using var form = new MultipartFormDataContent();
         var imageContent = new ByteArrayContent(await File.ReadAllBytesAsync(imagePath));
         imageContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
         form.Add(imageContent, "file", Path.GetFileName(imagePath));
 
-        var response = await client.PostAsync("https://openapi.zalo.me/v2.0/oa/upload/image", form);
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://openapi.zalo.me/v2.0/oa/upload/image")
+        {
+            Content = form
+        };
+        request.Headers.Add("access_token", accessToken);
+
+        var response = await client.SendAsync(request);
         var json = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)
             throw new Exception($"Upload failed: {json}");
 
         using var doc = JsonDocument.Parse(json);
-        return doc.RootElement.GetProperty("data").GetProperty("attachment_id").GetString();
+        var root = doc.RootElement;
+
+        // Debug JSON trả về
+        Console.WriteLine(json);
+
+        if (root.TryGetProperty("data", out var dataElement) &&
+            dataElement.TryGetProperty("attachment_id", out var attachmentIdElement))
+        {
+            return attachmentIdElement.GetString();
+        }
+
+        throw new Exception("Zalo response does not contain attachment_id. Full response: " + json);
     }
+
     public async Task CreatePromotionAsync(ZaloPromotionRequest promotion)
     {
-        await _zaloPromotionRepository.InsertOneAsync(promotion);
+        await _zaloPromotionRepository.InsertOrUpdateByTagAsync(promotion);
     }
 
     public async Task SendPromotionToUser(
-    string userId,
-    string header,
-    List<ZaloElement> elements,
-    string accessToken,
-    List<ZaloButton> buttons,
-    List<string> bannerAttachmentIds)
+        string userId,
+        string accessToken,
+        string tag
+    )
     {
+        _logger.LogInformation("SendPromotionToUser: {Tag} {userId} {access}", tag, userId, accessToken);
+        var promotion = await _zaloPromotionRepository.GetPromotionByTagAsync(tag);
+        if (promotion == null)
+        {
+            _logger.LogWarning("Không tìm thấy nội dung ZaloPromotion với tag: {Tag}", tag);
+            return;
+        }
+
+        var elements = promotion.Elements.Select(el => new ZaloElement
+        {
+            Type = el.Type,
+            AttachmentId = el.AttachmentId,
+            Content = el.Content,
+            Align = el.Align,
+            ContentTable = el.ContentTable?.Select(row => new ZaloTableRow
+            {
+                Key = row.Key ?? "",
+                Value = row.Value ?? ""
+            }).ToList()
+        }).ToList();
+
+        var buttons = promotion.Buttons.Select(btn => new ZaloButton
+        {
+            Title = btn.Title,
+            ImageIcon = btn.ImageIcon,
+            Type = btn.Type,
+            Payload = btn.Payload
+        }).ToList();
+
         var client = _httpClientFactory.CreateClient();
         client.DefaultRequestHeaders.Clear();
         client.DefaultRequestHeaders.Add("access_token", accessToken);
@@ -171,24 +183,7 @@ public class ZaloService
 
         var elementObjects = new List<object>();
 
-        // Chèn các banner đầu tiên
-        foreach (var banner in bannerAttachmentIds)
-        {
-            elementObjects.Add(new
-            {
-                type = "banner",
-                attachment_id = banner
-            });
-        }
-
-        // Chèn header sau banner
-        elementObjects.Add(new
-        {
-            type = "header",
-            content = header
-        });
-
-        // Chèn các phần tử gốc (text, table,...)
+        // Xử lý các phần tử từ MongoDB
         var allowedTypes = new[] { "banner", "header", "text", "table" };
 
         foreach (var el in elements)
@@ -199,36 +194,102 @@ public class ZaloService
                 continue;
             }
 
-            if (el.Type == "text")
+            switch (el.Type)
             {
-                elementObjects.Add(new { type = "text", align = el.Align, content = el.Content });
-            }
-            else if (el.Type == "table" && el.ContentTable != null && el.ContentTable.Any())
-            {
-                elementObjects.Add(new
-                {
-                    type = "table",
-                    content_table = el.ContentTable.Select(row => new { key = row.Key, value = row.Value }).ToList()
-                });
-            }
-            else if (el.Type == "banner")
-            {
-                elementObjects.Add(new { type = "banner", attachment_id = el.AttachmentId });
-            }
-            else if (el.Type == "header")
-            {
-                elementObjects.Add(new { type = "header", content = el.Content });
+                case "banner":
+                    if (!string.IsNullOrWhiteSpace(el.AttachmentId))
+                    {
+                        elementObjects.Add(new { type = "banner", attachment_id = el.AttachmentId });
+                    }
+                    break;
+
+                case "header":
+                    if (!string.IsNullOrWhiteSpace(el.Content))
+                    {
+                        elementObjects.Add(new { type = "header", content = el.Content });
+                    }
+                    break;
+
+                case "text":
+                    elementObjects.Add(new { type = "text", align = el.Align, content = el.Content });
+                    break;
+
+                case "table":
+                    if (el.ContentTable == null || !el.ContentTable.Any())
+                    {
+                        _logger.LogWarning("Zalo table element is empty for tag {Tag}", tag);
+                        break;
+                    }
+
+                    var validTableRows = el.ContentTable
+                        .Where(row => !string.IsNullOrWhiteSpace(row.Key) || !string.IsNullOrWhiteSpace(row.Value))
+                        .Select(row => new { key = row.Key ?? "", value = row.Value ?? "" })
+                        .ToList();
+
+                    if (validTableRows.Any())
+                    {
+                        _logger.LogInformation("Adding table element with rows: {@Rows}", validTableRows);
+                        elementObjects.Add(new
+                        {
+                            type = "table",
+                            content = validTableRows
+                        });
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Zalo table element has no valid rows for tag {Tag}", tag);
+                    }
+
+                    break;
+
             }
         }
 
-
-        var buttonsObj = buttons.Select(btn => new
+        var buttonsObj = new List<object>();
+        foreach (var btn in buttons)
         {
-            title = btn.Title,
-            image_icon = btn.ImageIcon,
-            type = btn.Type,
-            payload = btn.Payload
-        });
+            if (btn.Type == "oa.open.url")
+            {
+                // Payload cần parse thành object có trường url
+                try
+                {
+                    var urlPayload = JsonConvert.DeserializeObject<Dictionary<string, string>>(btn.Payload?.ToString() ?? "");
+                    if (urlPayload != null && urlPayload.ContainsKey("url"))
+                    {
+                        buttonsObj.Add(new
+                        {
+                            title = btn.Title,
+                            image_icon = btn.ImageIcon,
+                            type = btn.Type,
+                            payload = new
+                            {
+                                url = urlPayload["url"]
+                            }
+                        });
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Invalid payload format for oa.open.url button: {Payload}", btn.Payload);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError("Lỗi parse payload url button: {Error}", ex.Message);
+                }
+            }
+            else
+            {
+                // Trường hợp payload là chuỗi bình thường
+                buttonsObj.Add(new
+                {
+                    title = btn.Title,
+                    image_icon = btn.ImageIcon,
+                    type = btn.Type,
+                    payload = btn.Payload?.ToString()
+                });
+            }
+        }
+
 
         var body = new
         {
@@ -256,7 +317,7 @@ public class ZaloService
 
         try
         {
-            var zaloResponse = JsonConvert.DeserializeObject<ZaloResponseError>(resultContent);
+            var zaloResponse = JsonConvert.DeserializeObject<ZaloTokenResponse>(resultContent);
             if (zaloResponse?.error == -218)
             {
                 _logger.LogWarning("User {UserId} đã vượt quá quota nhận tin OA trong ngày.", userId);
@@ -270,7 +331,5 @@ public class ZaloService
 
         Console.WriteLine($"Sent promotion to {userId} → Zalo response: {resultContent}");
     }
-
-
 
 }

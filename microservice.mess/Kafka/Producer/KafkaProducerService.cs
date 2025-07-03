@@ -26,7 +26,7 @@ namespace microservice.mess.Kafka
                 Value = message
             });
 
-            Console.WriteLine($"Sent to Kafka: {result.TopicPartitionOffset}");
+            Console.WriteLine($"Kafka TopicPartitionOffset: {result.TopicPartitionOffset}");
         }
     }
 }

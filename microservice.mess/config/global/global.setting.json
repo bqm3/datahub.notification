@@ -70,7 +70,7 @@
   "ZALO": {
     "app_id": "2705021400201909966",
     "oa_id": "4606516489169499369",
-    "redirect_uri": "https://c740-101-99-6-230.ngrok-free.app/zalo/callback",
+    "redirect_uri": "https://5225-101-99-6-230.ngrok-free.app/zalo/callback",
     "secret_key": "pG41w9YDMLQzrKEL0LfM",
     "grant_type": "authorization_code",
     "state": "Datahub@2025",
