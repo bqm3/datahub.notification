@@ -24,9 +24,11 @@ namespace microservice.mess.Models.Message
         public SignalRPayload? SignalR { get; set; }
         public SlackPayload? Slack { get; set; }
         public ZaloPayload? Zalo { get; set; }
+        public SendTemplateMessageRequest? Signet { get; set; }
         // Các payload khác như SMS, Signet...
     }
 
+    
     public class SignalRPayload
     {
         public string Message { get; set; } = string.Empty;
@@ -40,8 +42,6 @@ namespace microservice.mess.Models.Message
     {
         public string AccessToken { get; set; } = string.Empty;
         public string UserId { get; set; } = string.Empty;
-
-        // Message dạng đơn giản
         public string? Message { get; set; }
 
         // Gửi template promotion

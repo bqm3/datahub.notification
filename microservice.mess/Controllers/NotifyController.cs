@@ -24,7 +24,6 @@ namespace microservice.mess.Controllers
             try
             {
                 var headers = await _dispatcher.DispatchMessageAsync(request);
-
                 if (headers == null)
                     return BadRequest("Dữ liệu không hợp lệ.");
 

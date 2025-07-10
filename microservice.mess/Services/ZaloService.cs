@@ -24,21 +24,18 @@ public class ZaloService
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<ZaloService> _logger;
-    private readonly ZaloTokenRepository _zaloTokenRepository;
+    private readonly ZaloRepository _zaloRepository;
     private readonly ZaloSettings _zaloSettings;
-    private readonly ZaloPromotionRepository _zaloPromotionRepository;
     public ZaloService(
     IHttpClientFactory factory,
-    ZaloPromotionRepository zaloPromotionRepository,
     IOptions<ZaloSettings> zaloOptions,
     ILogger<ZaloService> logger,
-    ZaloTokenRepository ZaloTokenRepository)
+    ZaloRepository zaloRepository)
     {
         _httpClientFactory = factory;
-        _zaloPromotionRepository = zaloPromotionRepository;
         _logger = logger;
         _zaloSettings = zaloOptions.Value;
-        _zaloTokenRepository = ZaloTokenRepository;
+        _zaloRepository = zaloRepository;
     }
 
     // Xử lý zalo/callback
@@ -75,7 +72,7 @@ public class ZaloService
 
         var expiredAt = DateTime.UtcNow.AddSeconds(double.TryParse(tokenResponse.expires_in, out var sec) ? sec : 90000);
 
-        await _zaloTokenRepository.SaveOrUpdateToken(new ZaloToken
+        await _zaloRepository.SaveOrUpdateToken(new ZaloToken
         {
             OAID = _zaloSettings.oa_id,
             AccessToken = tokenResponse.access_token,
@@ -138,7 +135,7 @@ public class ZaloService
 
     public async Task CreatePromotionAsync(ZaloPromotionRequest promotion)
     {
-        await _zaloPromotionRepository.InsertOrUpdateByTagAsync(promotion);
+        await _zaloRepository.InsertOrUpdateByTagAsync(promotion);
     }
 
     public async Task SendPromotionToUser(
@@ -148,7 +145,7 @@ public class ZaloService
     )
     {
         _logger.LogInformation("SendPromotionToUser: {Tag} {userId} {access}", tag, userId, accessToken);
-        var promotion = await _zaloPromotionRepository.GetPromotionByTagAsync(tag);
+        var promotion = await _zaloRepository.GetPromotionByTagAsync(tag);
         if (promotion == null)
         {
             _logger.LogWarning("Không tìm thấy nội dung ZaloPromotion với tag: {Tag}", tag);
@@ -328,8 +325,11 @@ public class ZaloService
         {
             _logger.LogError("Lỗi khi parse JSON từ Zalo: {Error}", ex.Message);
         }
-
-        Console.WriteLine($"Sent promotion to {userId} → Zalo response: {resultContent}");
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("Zalo API error: {StatusCode} - {Content}", response.StatusCode, resultContent);
+            throw new Exception($"Zalo API error: {response.StatusCode} - {resultContent}");
+        }
     }
 
 }

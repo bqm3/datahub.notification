@@ -28,5 +28,36 @@ namespace microservice.mess.Helpers
                 .Replace("/", "_")
                 .Replace("=", "");
         }
+
+        public static string NormalizeFileValue(string rawFileValue)
+        {
+            var keyOrder = new[] { "i", "k", "f", "s", "t", "h" };
+            var parts = rawFileValue.Split('&', StringSplitOptions.RemoveEmptyEntries);
+
+            // Tạo dictionary<string, string> để chứa từng key=value
+            var dict = new Dictionary<string, string>();
+
+            foreach (var part in parts)
+            {
+                var idx = part.IndexOf('=');
+                if (idx > 0)
+                {
+                    var key = part.Substring(0, idx);
+                    var value = part.Substring(idx + 1);
+                    if (!dict.ContainsKey(key))
+                    {
+                        dict[key] = value;
+                    }
+                }
+            }
+
+            // Ghép lại đúng thứ tự
+            var result = string.Join("&", keyOrder
+                .Where(k => dict.ContainsKey(k))
+                .Select(k => $"{k}={dict[k]}"));
+
+            return result;
+        }
+
     }
 }

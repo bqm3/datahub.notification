@@ -28,31 +28,22 @@ namespace microservice.mess.Controllers
         private readonly ILogger<ZaloController> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ZaloService _zaloService;
-        private readonly ZaloEventRepository _zaloEventRepository;
-        private readonly ZaloPromotionRepository _zaloPromotionRepository;
-        private readonly ZaloMemberRepository _zaloMemberRepository;
+        private readonly ZaloRepository _zaloRepository;
         private readonly ZaloSettings _zaloSettings;
-        private readonly ZaloTokenRepository _zaloTokenRepository;
         private readonly KafkaProducerService _kafkaProducer;
 
         public ZaloController(IHttpClientFactory httpClientFactory,
                       ILogger<ZaloController> logger,
-                      ZaloEventRepository zaloEventRepository,
                       IOptions<ZaloSettings> zaloOptions,
-                      ZaloTokenRepository tokenReposity,
+                      ZaloRepository zaloRepository,
                       ZaloService zaloService,
-                      ZaloMemberRepository ZaloMemberRepository,
-                      ZaloPromotionRepository zaloPromotionRepository,
                       KafkaProducerService kafkaProducer)
         {
             _httpClientFactory = httpClientFactory;
             _logger = logger;
-            _zaloEventRepository = zaloEventRepository;
+            _zaloRepository = zaloRepository;
             _zaloSettings = zaloOptions.Value;
-            _zaloTokenRepository = tokenReposity;
             _zaloService = zaloService;
-            _zaloMemberRepository = ZaloMemberRepository;
-            _zaloPromotionRepository = zaloPromotionRepository;
             _kafkaProducer = kafkaProducer;
         }
 
@@ -61,7 +52,7 @@ namespace microservice.mess.Controllers
         {
             if (string.IsNullOrEmpty(code))
                 return BadRequest("Missing authorization code.");
-                
+
 
             var codeVerifier = HttpContext.Session.GetString("zalo_code_verifier");
             _logger.LogInformation("=> zalo_code_verifier: {zalo_code_verifier}", codeVerifier);
@@ -72,7 +63,7 @@ namespace microservice.mess.Controllers
                 State = state,
                 CodeVerifier = codeVerifier
             };
-            
+
             await _zaloService.ProcessCallback(callbackRequest);
 
             // var envelope = new NotificationKafkaEnvelope
@@ -88,32 +79,47 @@ namespace microservice.mess.Controllers
 
         [HttpPost("image/upload")]
         public async Task<IActionResult> UploadZaloImage(
-            [FromForm] IFormFile file,
+            [FromForm] UploadFileDto dto,
             [FromHeader(Name = "access_token")] string accessToken,
             [FromServices] ZaloService zaloService)
         {
-            if (file == null || file.Length == 0)
+            if (dto.File == null || dto.File.Length == 0)
                 return BadRequest("No file uploaded.");
 
-            // Lưu file tạm
             var tempPath = Path.GetTempFileName();
-            using (var stream = System.IO.File.Create(tempPath))
-            {
-                await file.CopyToAsync(stream);
-            }
 
             try
             {
-                string attachmentId = await zaloService.UploadImageToZaloAsync(tempPath, accessToken);
-                System.IO.File.Delete(tempPath); // Xóa file tạm sau khi upload
+                // Ghi file tạm
+                using (var stream = System.IO.File.Create(tempPath))
+                {
+                    await dto.File.CopyToAsync(stream);
+                }
 
-                return Ok(new { success = true, attachment_id = attachmentId });
+                // Upload lên Zalo
+                string attachmentId = await zaloService.UploadImageToZaloAsync(tempPath, accessToken);
+
+                return Ok(new
+                {
+                    success = true,
+                    attachment_id = attachmentId
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
+            finally
+            {
+                if (System.IO.File.Exists(tempPath))
+                    System.IO.File.Delete(tempPath);
             }
         }
+
 
 
         // POST: /zalo/create-promotion
@@ -128,7 +134,7 @@ namespace microservice.mess.Controllers
         [HttpGet("get-promotion/{id}")]
         public async Task<IActionResult> GetPromotionById(string id)
         {
-            var promotion = await _zaloPromotionRepository.GetPromotionByTagAsync(id);
+            var promotion = await _zaloRepository.GetPromotionByTagAsync(id);
             if (promotion == null)
             {
                 return NotFound("Promotion not found");
@@ -141,7 +147,7 @@ namespace microservice.mess.Controllers
         [HttpGet("promotions")]
         public async Task<IActionResult> GetAllPromotions()
         {
-            var promotions = await _zaloPromotionRepository.GetAllAsync();
+            var promotions = await _zaloRepository.GetAllAsync();
             return Ok(promotions);
         }
 
@@ -149,13 +155,13 @@ namespace microservice.mess.Controllers
         [HttpPut("update-promotion/{id}")]
         public async Task<IActionResult> UpdatePromotion(string id, [FromBody] ZaloPromotionRequest updatedPromotion)
         {
-            var existing = await _zaloPromotionRepository.GetPromotionByTagAsync(id);
+            var existing = await _zaloRepository.GetPromotionByTagAsync(id);
             if (existing == null)
             {
                 return NotFound("Promotion not found");
             }
 
-            var updated = await _zaloPromotionRepository.UpdatePromotionByTagAsync(id, updatedPromotion);
+            var updated = await _zaloRepository.UpdatePromotionByTagAsync(id, updatedPromotion);
             if (!updated)
             {
                 return BadRequest("Update failed");
@@ -168,7 +174,7 @@ namespace microservice.mess.Controllers
         [HttpDelete("delete-promotion/{id}")]
         public async Task<IActionResult> DeletePromotion(string id)
         {
-            var deleted = await _zaloPromotionRepository.DeletePromotionByTagAsync(id);
+            var deleted = await _zaloRepository.DeletePromotionByTagAsync(id);
             if (!deleted)
             {
                 return NotFound("Promotion not found or already deleted");
@@ -307,7 +313,7 @@ namespace microservice.mess.Controllers
 
                             if (!string.IsNullOrEmpty(tag))
                             {
-                                var accessToken = await _zaloTokenRepository.GetValidAccessTokenAsync(oaId);
+                                var accessToken = await _zaloRepository.GetValidAccessTokenAsync(oaId);
                                 _logger.LogInformation("AccessToken: {accessToken}", accessToken);
 
                                 await _zaloService.SendPromotionToUser(
@@ -341,7 +347,7 @@ namespace microservice.mess.Controllers
                 {
                     string status = (eventName == "user_out_group" || eventName == "unfollow") ? "deactived" : "active";
 
-                    await _zaloMemberRepository.UpsertUserAsync(userId, status, eventName);
+                    await _zaloRepository.UpsertUserAsync(userId, status, eventName);
                     _logger.LogInformation("Zalo group event: {event} -> {userId} = {status}", eventName, userId, status);
                 }
 
@@ -356,7 +362,7 @@ namespace microservice.mess.Controllers
                     Timestamp = timestamp
                 };
 
-                await _zaloEventRepository.InsertEventAsync(log);
+                await _zaloRepository.InsertEventAsync(log);
 
                 _logger.LogInformation("Zalo Webhook Event: {event} from user {userId}", eventName, userId);
                 return Ok();
@@ -372,7 +378,7 @@ namespace microservice.mess.Controllers
         [HttpGet("list-users")]
         public async Task<IActionResult> GetListUserByIDs()
         {
-            var userIds = await _zaloMemberRepository.ListUserAsync();
+            var userIds = await _zaloRepository.ListUserAsync();
             var result = userIds != null && userIds.Any() ? 1 : 0;
 
             return Ok(new

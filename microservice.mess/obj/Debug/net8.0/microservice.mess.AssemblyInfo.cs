@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("microservice.mess")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a7332154dbb3bc4bb39b3aa34b29937d1657c0c9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3044eda80886c741d8d524e797639406dbd6a20d")]
 [assembly: System.Reflection.AssemblyProductAttribute("microservice.mess")]
 [assembly: System.Reflection.AssemblyTitleAttribute("microservice.mess")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

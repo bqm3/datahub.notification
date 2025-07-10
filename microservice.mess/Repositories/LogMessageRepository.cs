@@ -8,7 +8,7 @@ using MongoDB.Driver;
 
 namespace microservice.mess.Repositories
 {
-    public class LogMessageRepository : ILogMessageRepository
+    public class LogMessageRepository : ILogMessage
     {
         private readonly IMongoCollection<MessageLog> _logCollection;
         private readonly IMongoCollection<MessageErrorLog> _errorCollection;

@@ -39,12 +39,68 @@ namespace microservice.mess.Services
             }
 
             string action = request.Headers.Action;
-            string messageType = request.Headers.MessageType.ToLower();
-            string createdAt = request.Headers.CreatedAt;
+            string messageType = request.Headers.MessageType?.ToLower() ?? "";
+            var vnNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh"));
+            string createdAt = string.IsNullOrWhiteSpace(request.Headers.CreatedAt)
+                ? vnNow.ToString("HH:mm:ss dd/MM/yyyy")
+                : request.Headers.CreatedAt;
+
+            request.Headers.CreatedAt = createdAt;
             string topic = $"topic-{messageType}";
 
             foreach (var item in request.Body)
             {
+                var filteredItem = new MessageBodyItem();
+
+                switch (messageType)
+                {
+                    case "mail":
+                        if (item.Email == null) continue;
+                        filteredItem.Email = item.Email;
+                        break;
+
+                    case "zalo":
+                        if (item.Zalo == null) continue;
+                        filteredItem.Zalo = item.Zalo;
+                        break;
+
+                    case "signet":
+                        if (item.Signet == null) continue;
+                        filteredItem.Signet = item.Signet;
+                        break;
+
+                    case "signalr":
+                        if (item.SignalR != null)
+                        {
+                            var signalRData = new Dictionary<string, string>
+                            {
+                                ["Action"] = action,
+                                ["Message"] = item.SignalR.Message ?? "",
+                                ["CreatedAt"] = createdAt
+                            };
+                            await _hubContext.Clients.All.SendAsync("DispatchMessage", signalRData);
+                            _logger.LogInformation("Dispatched to SignalR: {msg}", item.SignalR.Message);
+                        }
+                        continue;
+
+                    case "slack":
+                        if (!string.IsNullOrEmpty(item.Slack?.Message))
+                        {
+                            await _slackService.SendMessageAsync(item.Slack.Message);
+                            _logger.LogInformation("Sent to Slack: {msg}", item.Slack.Message);
+                        }
+                        continue;
+
+                    case "push":
+                    case "sms":
+                        _logger.LogWarning("MessageType '{type}' chưa được hỗ trợ xử lý.", messageType);
+                        continue;
+
+                    default:
+                        _logger.LogWarning("Không hỗ trợ messageType: {type}", messageType);
+                        continue;
+                }
+
                 var message = new MessageRequest
                 {
                     Headers = new MessageHeaders
@@ -53,59 +109,15 @@ namespace microservice.mess.Services
                         MessageType = messageType,
                         CreatedAt = createdAt
                     },
-                    Body = new List<MessageBodyItem> { item }
+                    Body = new List<MessageBodyItem> { filteredItem }
                 };
 
-                string serializedRequest = JsonSerializer.Serialize(message);
+                var serializedRequest = JsonSerializer.Serialize(message);
+
                 try
                 {
-                    switch (messageType)
-                    {
-                        case "mail":
-                            await _kafkaProducer.SendMessageAsync(topic, null, serializedRequest);
-                            break;
-                        case "zalo":
-                            await _kafkaProducer.SendMessageAsync(topic, null, serializedRequest);
-                            break;
-
-                        case "signalr":
-                            var signalRPayload = item.SignalR?.Message ?? "";
-                            var data = new Dictionary<string, string>
-                            {
-                                ["Action"] = action,
-                                ["Message"] = signalRPayload,
-                                ["CreatedAt"] = createdAt
-                            };
-                            await _hubContext.Clients.All.SendAsync("DispatchMessage", data);
-                            _logger.LogInformation("Dispatched to SignalR: {msg}", signalRPayload);
-                            break;
-
-                        case "slack":
-                            var slackPayload = item.Slack?.Message ?? "No message";
-                            await _slackService.SendMessageAsync(slackPayload);
-                            _logger.LogInformation("Sent to Slack: {msg}", slackPayload);
-                            break;
-
-                        case "push":
-                        case "sms":
-                        case "signet":
-                            _logger.LogWarning("Chưa hỗ trợ messageType: {type}", messageType);
-                            break;
-
-                        default:
-                            _logger.LogWarning("Không hỗ trợ messageType: {type}", messageType);
-                            break;
-                    }
-
-                    // // Ghi log gửi thành công
-                    // var log = new MessageLog
-                    // {
-                    //     Action = action,
-                    //     Channel = messageType,
-                    //     CreatedAt = DateTime.UtcNow,
-                    //     Payload = serializedRequest
-                    // };
-                    // await _logMessageRepository.InsertAsync(log);
+                    await _kafkaProducer.SendMessageAsync(topic, null, serializedRequest);
+                    _logger.LogInformation("Đã gửi message Kafka topic {topic}", topic);
                 }
                 catch (Exception ex)
                 {
@@ -117,17 +129,16 @@ namespace microservice.mess.Services
                         RawPayload = serializedRequest,
                         CreatedAt = DateTime.UtcNow
                     };
+
                     await _logMessageRepository.InsertErrorAsync(errorLog);
                 }
             }
 
-            // Notify qua SignalR nếu có
             if (signalRClient != null)
             {
                 await signalRClient.SendAsync("MessageSent", $"Đã gửi `{action}` với {request.Body.Count} item(s)");
             }
 
-            // Trả về headers đã gửi để NotifyController biết mà log
             return request.Headers;
         }
 

@@ -59,7 +59,6 @@ namespace microservice.mess.Services
                         email.LastSentAt = now;
                         await repo.UpdateAsync(email.Id, email);
 
-                        _logger.LogInformation("Scheduled email sent: {id}", email.Id);
                     }
                     catch (Exception ex)
                     {

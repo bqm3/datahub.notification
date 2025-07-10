@@ -47,6 +47,8 @@ namespace microservice.mess.Models
         [BsonElement("buttons")]
         public List<ZaloButtonBson> Buttons { get; set; } = new();
     }
+    
+    
      public class ZaloEvent
     {
         [BsonId]
@@ -54,8 +56,8 @@ namespace microservice.mess.Models
         public string? Id { get; set; }
         public string OAId { get; set; }           // ID của OA (sender)
         public string UserId { get; set; }         // ID người dùng Zalo
-        public string Event { get; set; }         
-        public string MessageType { get; set; }    
+        public string Event { get; set; }
+        public string MessageType { get; set; }
         public string MessageContent { get; set; }
         public DateTime Timestamp { get; set; }
     }
@@ -72,10 +74,17 @@ namespace microservice.mess.Models
 
     public class ZaloButtonBson
     {
-        public string Title { get; set; }
-        public string ImageIcon { get; set; }
-        public string Type { get; set; }
-        public BsonValue Payload { get; set; }
+        [BsonElement("title")]
+    public string Title { get; set; }
+
+    [BsonElement("image_icon")]
+    public string ImageIcon { get; set; }
+
+    [BsonElement("type")]
+    public string Type { get; set; }
+
+    [BsonElement("payload")]
+    public string Payload { get; set; } // dạng JSON string
     }
     public class ZaloElement
     {
@@ -142,6 +151,46 @@ namespace microservice.mess.Models
 
         [JsonProperty("payload")]
         public object Payload { get; set; }
+
+        // Chuyển Payload về chuỗi JSON để lưu vào Bson
+    public string ToBsonPayload()
+    {
+        return JsonConvert.SerializeObject(this.Payload);
+    }
+
+    // Load lại Payload từ chuỗi JSON trong Bson
+    public void LoadFromBsonPayload(string payloadJson)
+    {
+        if (string.IsNullOrEmpty(payloadJson)) return;
+
+        try
+        {
+            this.Payload = JsonConvert.DeserializeObject<object>(payloadJson);
+        }
+        catch (Exception ex)
+        {
+            // Log nếu cần thiết
+            this.Payload = null;
+        }
+    }
+    }
+
+    public class ZaloMember
+    {
+        [BsonId]
+        [BsonRepresentation(BsonType.ObjectId)]
+        public ObjectId Id { get; set; }
+
+        [BsonElement("user_id")]
+        public string UserId { get; set; }
+
+        [BsonElement("status")]
+        public string Status { get; set; }
+        [BsonElement("event_name")]
+        public string EventName { get; set; }
+
+        [BsonElement("last_updated")]
+        public DateTime LastUpdated { get; set; }
     }
 
     public class ZaloSendMessagePayload
