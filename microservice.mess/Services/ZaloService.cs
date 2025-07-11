@@ -225,7 +225,6 @@ public class ZaloService
 
                     if (validTableRows.Any())
                     {
-                        _logger.LogInformation("Adding table element with rows: {@Rows}", validTableRows);
                         elementObjects.Add(new
                         {
                             type = "table",

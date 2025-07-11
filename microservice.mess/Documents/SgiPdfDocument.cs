@@ -1,12 +1,17 @@
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using Aspose.Words;
+using Aspose.Words.Drawing;
 using microservice.mess.Models.Message;
 using System.Net.Http;
+using WordsDocument = Aspose.Words.Document;
+using WordsRun = Aspose.Words.Run;
 
 namespace microservice.mess.Documents
 {
-    public class SgiPdfDocument : IDocument
+    // public class SgiPdfDocument : IDocument
+    public class SgiPdfDocument 
     {
         private readonly List<SgiDataPdfTemplate> _records;
 
@@ -88,7 +93,10 @@ namespace microservice.mess.Documents
                                             c.Item().Element(inner =>
                                                 inner.Container().Column(block =>
                                                 {
-                                                    block.Item().Text($"{timeFormatted} – {author}").FontSize(10);
+                                                    block.Item().Text(text =>
+{
+    text.Span($"{timeFormatted} – {author}").FontSize(10);
+});
                                                     block.Item().Text(shortContent).FontSize(10);
                                                     block.Item().Hyperlink(linkUrl).Text("Link bài").FontColor(Colors.Blue.Medium).FontSize(9);
                                                 })
@@ -132,13 +140,29 @@ namespace microservice.mess.Documents
             }
         }
 
-        // void AddItem(string label, string value)
+        // public void InsertChartsIntoTemplate(string templatePath, string outputPath, List<string> chartImagePaths)
         // {
-        //     column.Item().Text(text =>
+        //     var doc = new WordsDocument(templatePath);
+        //     var builder = new DocumentBuilder(doc);
+
+        //     for (int i = 0; i < chartImagePaths.Count; i++)
         //     {
-        //         text.Span($"{label} ").Bold();
-        //         text.Span(value);
-        //     });
+        //         string placeholder = $"<<Chart{i + 1}>>";
+        //         var nodes = doc.GetChildNodes(NodeType.Run, true).OfType<WordsRun>()
+        //                        .Where(r => r.Text.Contains(placeholder)).ToList();
+
+        //         foreach (var run in nodes)
+        //         {
+        //             builder.MoveTo(run);
+        //             builder.InsertImage(chartImagePaths[i], RelativeHorizontalPosition.Margin, 0,
+        //                                                  RelativeVerticalPosition.Paragraph, 0,
+        //                                                  400, 250, WrapType.Inline);
+        //             run.Text = ""; // OK vì là WordsRun
+        //         }
+        //     }
+
+        //     doc.Save(outputPath);
+        //     Console.WriteLine($"=> Word file generated: {outputPath}");
         // }
 
     }

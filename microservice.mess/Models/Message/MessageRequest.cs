@@ -43,6 +43,7 @@ namespace microservice.mess.Models.Message
         public string AccessToken { get; set; } = string.Empty;
         public string UserId { get; set; } = string.Empty;
         public string? Message { get; set; }
+        public string? Tag { get; set; }
 
         // Gửi template promotion
         public ZaloSendMessagePayload? SendMessagePayload { get; set; }

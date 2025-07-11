@@ -117,7 +117,7 @@ namespace microservice.mess.Services
                 try
                 {
                     await _kafkaProducer.SendMessageAsync(topic, null, serializedRequest);
-                    _logger.LogInformation("Đã gửi message Kafka topic {topic}", topic);
+                    _logger.LogInformation("Đã gửi message Kafka {topic}", topic);
                 }
                 catch (Exception ex)
                 {

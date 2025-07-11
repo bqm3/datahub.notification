@@ -11,6 +11,7 @@ using microservice.mess.Services;
 using microservice.mess.Repositories;
 using microservice.mess.Models.Message;
 using microservice.mess.Models;
+using microservice.mess.Documents;
 
 namespace microservice.mess.Controllers
 {
@@ -21,14 +22,16 @@ namespace microservice.mess.Controllers
         private readonly ILogger<SignetController> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly SignetService _signetService;
+        private readonly SgiPdfChart _sgiPdfChart;
         private readonly SignetRepository _signetRepository;
 
-        public SignetController(ILogger<SignetController> logger, IHttpClientFactory httpClientFactory, SignetService signetService, SignetRepository signetRepository)
+        public SignetController(ILogger<SignetController> logger, IHttpClientFactory httpClientFactory, SgiPdfChart sgiPdfChart, SignetService signetService, SignetRepository signetRepository)
         {
             _logger = logger;
             _httpClientFactory = httpClientFactory;
             _signetService = signetService;
             _signetRepository = signetRepository;
+            _sgiPdfChart = sgiPdfChart;
         }
 
         [HttpPost("sgi-action")]
@@ -58,12 +61,33 @@ namespace microservice.mess.Controllers
         }
 
         #region 
+
+        [HttpPost("generate-chart")]
+        public IActionResult GenerateCharts([FromBody] ChartJsonRequest request)
+        {
+            try
+            {
+                _sgiPdfChart.GenerateFromJson(request);
+                return Ok(new
+                {
+                    Message = "Charts created",
+                    Count = request.Charts.Count,
+                    Excel = "Exports/debug.xlsx"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Error = ex.Message });
+            }
+        }
+
+
         [HttpGet("generate")]
         public async Task<IActionResult> GeneratePdf()
         {
             try
             {
-                var filePath = await _signetRepository.GeneratePdfWithQuestAsync();
+                var filePath = await _signetRepository.GeneratePdfWithAsposeAsync();
                 return Ok(ApiResponse<string>.SuccessResponse(filePath, "Upload file thành công"));
             }
             catch (Exception ex)

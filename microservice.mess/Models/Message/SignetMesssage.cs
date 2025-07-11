@@ -1,5 +1,6 @@
 using microservice.mess.Models;
 using MongoDB.Bson;
+using System.Data;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
 
@@ -269,4 +270,65 @@ namespace microservice.mess.Models.Message
         [BsonElement("message")]
         public string? Message { get; set; }
     }
+
+    public class ChuyenDeExportDto
+    {
+        public string ChuyenDe { get; set; }
+        public List<RecordExportDto> Records { get; set; }
+    }
+
+    public class RecordExportDto
+    {
+        public string Title { get; set; }
+        public string Author { get; set; }
+        public string CreatedAt { get; set; }
+        public string Content { get; set; }
+        public string Link { get; set; }
+    }
+
+    public class ChartInputConfig
+    {
+        public DataTable Data { get; set; } = new();
+
+        // Tên cột
+        public string CategoryColumn { get; set; } = "";        // ví dụ: "Chủ đề"
+        public string TotalColumn { get; set; } = "";           // ví dụ: "Tổng"
+        public string FacebookColumn { get; set; } = "";        // ví dụ: "Facebook"
+        public string TelegramColumn { get; set; } = "";        // ví dụ: "Telegram"
+
+        // Tiêu đề biểu đồ
+        public string DoughnutTitle { get; set; } = "Biểu đồ Doughnut";
+        public string PieTitle { get; set; } = "Biểu đồ Pie";
+        public string ColumnTitle { get; set; } = "Biểu đồ Cột";
+    }
+
+    public class ChartRequestDto
+{
+    public List<Dictionary<string, object>> Data { get; set; } = new();
+
+    public string CategoryColumn { get; set; } = "";
+    public string TotalColumn { get; set; } = "";
+    public string FacebookColumn { get; set; } = "";
+    public string TelegramColumn { get; set; } = "";
+
+    public string DoughnutTitle { get; set; } = "Biểu đồ Doughnut";
+    public string PieTitle { get; set; } = "Biểu đồ Pie";
+    public string ColumnTitle { get; set; } = "Biểu đồ Cột";
+}
+
+public class ChartJsonRequest
+{
+    public List<Dictionary<string, object>> Data { get; set; } = new();
+    public List<ChartDefinition> Charts { get; set; } = new();
+}
+
+public class ChartDefinition
+{
+    public string Type { get; set; } = ""; // "Pie", "Column", etc.
+    public string Title { get; set; } = "";
+    public List<string> Series { get; set; } = new();
+    public string Category { get; set; } = "";
+}
+
+
 }

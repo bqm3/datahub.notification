@@ -37,7 +37,6 @@ namespace microservice.mess.Kafka
             SignetService signetService,
             ZaloService zaloService,
             ZaloRepository zaloRepository,
-            // SignetRepository signetRepository,
             IHttpClientFactory httpClientFactory,
             IOptions<SmtpSettings> smtpOptions,
             IOptions<ZaloSettings> zaloOptions,
@@ -49,7 +48,6 @@ namespace microservice.mess.Kafka
             _signetService = signetService;
             _zaloService = zaloService;
             _zaloRepository = zaloRepository;
-            // _signetRepository = signetRepository;
             _httpClientFactory = httpClientFactory;
             _smtpSettings = smtpOptions.Value;
             _zaloSettings = zaloOptions.Value;
@@ -60,8 +58,6 @@ namespace microservice.mess.Kafka
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("👂 NotifyKafkaConsumer loop is running");
-
             var config = new ConsumerConfig
             {
                 BootstrapServers = _bootstrapServers,
@@ -73,8 +69,6 @@ namespace microservice.mess.Kafka
             using var consumer = new ConsumerBuilder<Ignore, string>(config).Build();
             consumer.Subscribe(_topics);
 
-            _logger.LogInformation("Unified Kafka Consumer started. Listening to: {topics}", string.Join(", ", _topics));
-
             while (!cancellationToken.IsCancellationRequested)
             {
                 try
@@ -82,8 +76,6 @@ namespace microservice.mess.Kafka
                     var result = consumer.Consume(cancellationToken);
                     string payload = result.Message.Value;
                     string topic = result.Topic;
-
-                    _logger.LogInformation("Received message from topic {topic}: {message}", topic, payload);
 
                     var message = JsonConvert.DeserializeObject<MessageRequest>(payload);
                     if (message == null || message.Headers == null || message.Body == null)
@@ -153,7 +145,7 @@ namespace microservice.mess.Kafka
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to process mail message.");
-                await LogErrorAndRetry("topic-mail-error", message, ex);
+                // await LogErrorAndRetry("topic-mail-error", message, ex);
             }
         }
 
@@ -166,21 +158,6 @@ namespace microservice.mess.Kafka
                 var bodyItem = jsonMessage.Body?.FirstOrDefault();
                 var signet = bodyItem?.Signet;
 
-                if (signet == null)
-                {
-                    _logger.LogWarning("Signet payload missing.");
-                    return;
-                }
-                
-                _logger.LogInformation("HandleSignetAsync - action: {action}, template: {template}", action, signet?.TemplateName);
-
-                // var envelope = JsonConvert.DeserializeObject<MessageRequest>(jsonMessage);
-                // if (envelope == null || envelope.Headers == null || envelope.Body == null)
-                // {
-                //     return;
-                // }
-
-                // var action = action.Action;
                 switch (action)
                 {
                     case "send-signet-message-log":
@@ -196,28 +173,6 @@ namespace microservice.mess.Kafka
                         _logger.LogWarning("Unsupported signet action: {action}", action);
                         break;
                 }
-
-                // if (action?.ToLower() == "send-signet-message-log")
-                // {
-                //     foreach (var item in envelope.Body)
-                //     {
-                //         if (item.Signet != null)
-                //         {
-                //             var request = new SendTemplateMessageRequest
-                //             {
-                //                 TemplateName = item.Signet.TemplateName,
-                //                 Data = item.Signet.Data
-                //             };
-
-                //             await _signetService.SendTemplateMessageAsync(request);
-                //         }
-
-                //     }
-                // }
-                // else
-                // {
-                //     _logger.LogWarning("Unsupported action: {action}", action);
-                // }
             }
             catch (Exception ex)
             {
@@ -241,25 +196,19 @@ namespace microservice.mess.Kafka
 
                 switch (action)
                 {
-                    case "create-promotion":
-                        await _zaloRepository.InsertOrUpdateByTagAsync(zalo.PromotionRequest);
-                        break;
+                    // case "create-promotion":
+                    //     await _zaloRepository.InsertOrUpdateByTagAsync(zalo.PromotionRequest);
+                    //     break;
 
                     case "send-promotion":
+
                         if (string.IsNullOrEmpty(zalo.AccessToken) || string.IsNullOrEmpty(zalo.UserId))
                         {
                             _logger.LogWarning("Missing accessToken or userId.");
                             return;
                         }
 
-                        var promotion = await _zaloRepository.GetPromotionByTagAsync(zalo.PromotionRequest.Tag);
-                        if (promotion == null)
-                        {
-                            _logger.LogWarning("No promotion found for tag '{tag}'", zalo.PromotionRequest.Tag);
-                            return;
-                        }
-
-                        // await _zaloService.HandleSendPromotionAsync(promotion, zalo.AccessToken);
+                        await _zaloService.SendPromotionToUser(zalo.UserId, zalo.AccessToken, zalo.Tag);
                         break;
 
                     default:
@@ -270,20 +219,20 @@ namespace microservice.mess.Kafka
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to process zalo message.");
-                await LogErrorAndRetry("topic-zalo-error", message, ex);
+                // await LogErrorAndRetry("topic-zalo-error", message, ex);
             }
         }
 
-        private async Task LogErrorAndRetry(string errorTopic, MessageRequest message, Exception ex)
-        {
-            await _logMessageRepository.InsertErrorAsync(new MessageErrorLog
-            {
-                Error = ex.ToString(),
-                RawPayload = JsonConvert.SerializeObject(message),
-                CreatedAt = DateTime.UtcNow
-            });
+        // private async Task LogErrorAndRetry(string errorTopic, MessageRequest message, Exception ex)
+        // {
+        //     await _logMessageRepository.InsertErrorAsync(new MessageErrorLog
+        //     {
+        //         Error = ex.ToString(),
+        //         RawPayload = JsonConvert.SerializeObject(message),
+        //         CreatedAt = DateTime.UtcNow
+        //     });
 
-            await _kafkaProducer.SendMessageAsync(errorTopic, null, JsonConvert.SerializeObject(message));
-        }
+        //     await _kafkaProducer.SendMessageAsync(errorTopic, null, JsonConvert.SerializeObject(message));
+        // }
     }
 }

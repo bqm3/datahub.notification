@@ -8,6 +8,8 @@
   </PropertyGroup>
 
  <ItemGroup>
+  <PackageReference Include="Aspose.Cells" Version="19.5.0" />
+  <PackageReference Include="Aspose.Words" Version="19.5.0" />
   <PackageReference Include="BouncyCastle" Version="1.8.9" />
   <PackageReference Include="ClosedXML" Version="0.105.0" />
   <PackageReference Include="Elastic.CommonSchema.Log4net" Version="8.6.0" />

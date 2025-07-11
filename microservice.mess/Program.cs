@@ -2,6 +2,10 @@
 using FirebaseAdmin;
 using Minio;
 using QuestPDF.Infrastructure;
+using Aspose.Cells;
+using System;
+using System.IO;
+using System.Reflection;
 // using Serilog;
 // using Serilog.Sinks.Elasticsearch;
 // using Serilog.Formatting.Elasticsearch;
@@ -16,9 +20,12 @@ using microservice.mess.Filters;
 using microservice.mess.Models;
 using microservice.mess.Services;
 using microservice.mess.Kafka;
+using microservice.mess.Documents;
 
 var builder = WebApplication.CreateBuilder(args);
-
+Aspose.Cells.License license = new License();
+license.SetLicense("../microservice.mess/bin/#License#/License.lic");
+                
 // Load config từ global.setting.json
 builder.Configuration.AddJsonFile("config/global/global.setting.json", optional: false, reloadOnChange: true);
 
@@ -56,6 +63,11 @@ builder.Services.AddScoped<SignalRService>();
 builder.Services.AddScoped<KafkaProducerService>();
 builder.Services.AddScoped<SlackService>();
 
+// documents
+builder.Services.AddScoped<SgiPdfChart>();
+// builder.Services.AddScoped<ChartMapper>();
+
+
 builder.Services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
 builder.Services.AddSingleton<ILogMessage, LogMessageRepository>();
 
@@ -63,6 +75,9 @@ builder.Services.AddSingleton<ILogMessage, LogMessageRepository>();
 builder.Services.AddHostedService<ConsumeScopedServiceHostedService>();
 // scheduler mail
 builder.Services.AddHostedService<MailSchedulerService>();
+await EnsureKafkaTopic.EnsureKafkaTopicsAsync("host.docker.internal:9092", new[] {
+    "topic-mail", "topic-zalo", "topic-signet"
+});
 //http client
 builder.Services.AddHttpClient();
 builder.Services.AddControllers().AddNewtonsoftJson(); ;

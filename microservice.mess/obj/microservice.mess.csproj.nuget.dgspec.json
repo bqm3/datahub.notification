@@ -236,6 +236,14 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "Aspose.Cells": {
+              "target": "Package",
+              "version": "[19.5.0, )"
+            },
+            "Aspose.Words": {
+              "target": "Package",
+              "version": "[19.5.0, )"
+            },
             "BouncyCastle": {
               "target": "Package",
               "version": "[1.8.9, )"

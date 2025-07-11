@@ -8,19 +8,25 @@ using Minio.DataModel.Args;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using System.Text.RegularExpressions;
-using iText.Kernel.Pdf;
-using iText.Layout;
-using iText.Layout.Element;
-using iText.IO.Image;
-using iText.IO;
-using iText.Kernel.Font;
-using iText.IO.Font.Constants;
-using QuestPDF.Fluent;
+// using iText.Kernel.Pdf;
+// using iText.Layout;
+// using iText.Layout.Element;
+// using iText.IO.Image;
+// using iText.IO;
+// using iText.Kernel.Font;
+// using iText.IO.Font.Constants;
+// using QuestPDF.Fluent;
+using STJ = System.Text.Json.JsonSerializer;
+using Aspose.Words;
+using Aspose.Words.Reporting;
+using iTextDocument = iText.Layout.Document;
+using AsposeDocument = Aspose.Words.Document;
 using microservice.mess.Models;
 using microservice.mess.Documents;
 using microservice.mess.Models.Message;
 using microservice.mess.Configurations;
 using microservice.mess.Interfaces;
+using microservice.mess.Documents;
 using microservice.mess.Models.Message;
 
 namespace microservice.mess.Repositories
@@ -33,6 +39,7 @@ namespace microservice.mess.Repositories
         private readonly IMongoCollection<SgiMessageTemplate> _signetTemplates;
         private readonly IMongoCollection<SgiDataPdfTemplate> _signetCrawlData;
         private readonly ILogger<SignetRepository> _logger;
+
         private readonly IMinioClient _minioClient;
         public SignetRepository(IOptions<MongoSettings> mongoOptions, ILogger<SignetRepository> logger, IMongoClient mongoClient, IMinioClient minioClient)
         {
@@ -49,68 +56,137 @@ namespace microservice.mess.Repositories
 
         #region MinIO File PDF
 
-        public async Task<string> UploadToMinioAsync(string filePath)
+        // public async Task<string> UploadToMinioAsync(string filePath)
+        // {
+        //     string bucketName = "notify-exports";
+        //     string objectName = Path.GetFileName(filePath);
+        //     string contentType = "application/pdf";
+
+        //     try
+        //     {
+        //         // Tạo bucket nếu chưa có
+        //         bool exists = await _minioClient.BucketExistsAsync(new BucketExistsArgs().WithBucket(bucketName));
+        //         if (!exists)
+        //         {
+        //             await _minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucketName));
+        //         }
+
+        //         // Mở stream và upload
+        //         await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+        //         await _minioClient.PutObjectAsync(new PutObjectArgs()
+        //             .WithBucket(bucketName)
+        //             .WithObject(objectName)
+        //             .WithStreamData(stream)
+        //             .WithObjectSize(stream.Length)
+        //             .WithContentType(contentType));
+
+        //         return $"http://localhost:9000/{bucketName}/{objectName}";
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Lỗi khi upload file lên MinIO.");
+        //         throw;
+        //     }
+        // }
+
+        // public async Task<string> GeneratePdfWithQuestAsync()
+        // {
+        //     string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "templates");
+        //     Directory.CreateDirectory(folderPath);
+
+        //     string localFilePath = Path.Combine(folderPath, $"questpdf_{DateTime.Now:yyyyMMddHHmmss}.pdf");
+
+        //     var records = await _signetCrawlData.Find(_ => true)
+        //                                         .SortByDescending(x => x.Timestamp)
+        //                                         .Limit(10)
+        //                                         .ToListAsync();
+
+        //     var doc = new SgiPdfDocument(records);
+
+        //     try
+        //     {
+        //         // Ghi vào memory stream trước
+        //         using var memoryStream = new MemoryStream();
+        //         doc.GeneratePdf(memoryStream);
+
+        //         // Ghi memory stream ra file
+        //         await File.WriteAllBytesAsync(localFilePath, memoryStream.ToArray());
+
+        //         // Upload to MinIO
+        //         string fileUrl = await UploadToMinioAsync(localFilePath);
+
+        //         if (File.Exists(localFilePath))
+        //         {
+        //             File.Delete(localFilePath);
+        //         }
+
+        //         return fileUrl;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogWarning(ex, "Không thể xoá file PDF sau khi upload hoặc lỗi tạo PDF: {File}", localFilePath);
+        //         throw;
+        //     }
+        // }
+
+        public async Task<string> GeneratePdfWithAsposeAsync()
         {
-            string bucketName = "notify-exports";
-            string objectName = Path.GetFileName(filePath);
-            string contentType = "application/pdf";
-
-            try
-            {
-                // Tạo bucket nếu chưa có
-                bool exists = await _minioClient.BucketExistsAsync(new BucketExistsArgs().WithBucket(bucketName));
-                if (!exists)
-                {
-                    await _minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucketName));
-                }
-
-                // Upload
-                await _minioClient.PutObjectAsync(new PutObjectArgs()
-                    .WithBucket(bucketName)
-                    .WithObject(objectName)
-                    .WithFileName(filePath)
-                    .WithContentType(contentType));
-
-                // Trả về đường dẫn truy cập
-                string fileUrl = $"http://localhost:9000/{bucketName}/{objectName}"; // hoặc domain thật
-                return fileUrl;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi khi upload file lên MinIO.");
-                throw;
-            }
-        }
-
-        public async Task<string> GeneratePdfWithQuestAsync()
-        {
-            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "templates");
-            Directory.CreateDirectory(folderPath);
-
-            string localFilePath = Path.Combine(folderPath, $"questpdf_{DateTime.Now:yyyyMMddHHmmss}.pdf");
-
             var records = await _signetCrawlData.Find(_ => true)
                                                 .SortByDescending(x => x.Timestamp)
-                                                .Limit(10)
+                                                .Limit(5)
                                                 .ToListAsync();
 
-            var doc = new SgiPdfDocument(records);
-            doc.GeneratePdf(localFilePath);
+            var chuyenDeGroups = records
+                .GroupBy(r => r.Message.ChuyenDe ?? "Không rõ")
+                .Select(g => new ChuyenDeExportDto
+                {
+                    ChuyenDe = g.Key,
+                    Records = g.Select(r =>
+                    {
+                        var props = r.Message.Properties;
 
-            string fileUrl = await UploadToMinioAsync(localFilePath);
+                        return new RecordExportDto
+                        {
+                            Title = props.TryGetValue("title_s_srcha", out var titleList) && titleList?.Count > 0 ? titleList[0] : "",
+                            Author = props.TryGetValue("authorName_s_srcha", out var authorList) && authorList?.Count > 0 ? authorList[0] : "",
+                            CreatedAt = props.TryGetValue("createdAt_dt_srcha", out var createdList) && createdList?.Count > 0 && DateTime.TryParse(createdList[0], out var dt)
+                                            ? dt.ToString("dd/MM/yyyy HH:mm")
+                                            : "",
+                            Content = props.TryGetValue("content_s_srcha", out var contentList) && contentList?.Count > 0 ? contentList[0] : "",
+                            Link = props.TryGetValue("articleUrl_s_srcha", out var linkList) && linkList?.Count > 0 ? linkList[0] : ""
 
-            try
-            {
-                if (File.Exists(localFilePath))
-                    File.Delete(localFilePath);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Không thể xoá file PDF sau khi upload: {File}", localFilePath);
-            }
+                        };
+                    }).ToList()
+                })
+                .ToList();
 
-            return fileUrl;
+
+            string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "templates", "foreach.docx");
+            var doc = new Document(templatePath);
+
+            _logger.LogInformation("Full chuyenDeGroups: {Json}", STJ.Serialize(chuyenDeGroups));
+
+            var engine = new ReportingEngine();
+            engine.BuildReport(doc, chuyenDeGroups, "ChuyenDes");
+
+            // Lưu ra file PDF
+            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "templates");
+            Directory.CreateDirectory(folderPath);
+            string localFilePath = Path.Combine(folderPath, $"sgi_{DateTime.Now:yyyyMMddHHmmss}.docx");
+
+            // doc.Save(localFilePath, SaveFormat.Pdf);
+            doc.Save(localFilePath, SaveFormat.Docx);
+            // doc.Save("test-output.docx", SaveFormat.Docx);
+
+
+            // string fileUrl = await UploadToMinioAsync(localFilePath);
+
+            // if (File.Exists(localFilePath))
+            //     File.Delete(localFilePath);
+
+            return "123";
         }
+
 
         #endregion
 

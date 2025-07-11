@@ -5,12 +5,12 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace microservice.mess.Models
 {
-   public class NotificationKafkaEnvelope
+    public class NotificationKafkaEnvelope
     {
         public string Action { get; set; }
         public string MessageType { get; set; }
         public string CreatedAt { get; set; }
-        public string Payload { get; set; } 
+        public string Payload { get; set; }
     }
 
     public class ZaloCallbackRequest
@@ -47,9 +47,9 @@ namespace microservice.mess.Models
         [BsonElement("buttons")]
         public List<ZaloButtonBson> Buttons { get; set; } = new();
     }
-    
-    
-     public class ZaloEvent
+
+
+    public class ZaloEvent
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
@@ -74,17 +74,17 @@ namespace microservice.mess.Models
 
     public class ZaloButtonBson
     {
-        [BsonElement("title")]
-    public string Title { get; set; }
+        // [BsonElement("title")]
+        public string Title { get; set; }
 
-    [BsonElement("image_icon")]
-    public string ImageIcon { get; set; }
+        // [BsonElement("image_icon")]
+        public string ImageIcon { get; set; }
 
-    [BsonElement("type")]
-    public string Type { get; set; }
+        // [BsonElement("type")]
+        public string Type { get; set; }
 
-    [BsonElement("payload")]
-    public string Payload { get; set; } // dạng JSON string
+        // [BsonElement("payload")]
+        public string Payload { get; set; } // dạng JSON string
     }
     public class ZaloElement
     {
@@ -110,7 +110,7 @@ namespace microservice.mess.Models
         [BsonElement("type")]
         public string Type { get; set; } = string.Empty;
 
-        [BsonElement("attachmentId")]
+        [BsonElement("attachment_id")]
         public string? AttachmentId { get; set; }
 
         [BsonElement("content")]
@@ -140,39 +140,35 @@ namespace microservice.mess.Models
 
     public class ZaloButton
     {
-        [JsonProperty("title")]
         public string Title { get; set; }
 
-        [JsonProperty("image_icon")]
         public string ImageIcon { get; set; } = "default";
 
-        [JsonProperty("type")]
         public string Type { get; set; }
 
-        [JsonProperty("payload")]
         public object Payload { get; set; }
 
         // Chuyển Payload về chuỗi JSON để lưu vào Bson
-    public string ToBsonPayload()
-    {
-        return JsonConvert.SerializeObject(this.Payload);
-    }
-
-    // Load lại Payload từ chuỗi JSON trong Bson
-    public void LoadFromBsonPayload(string payloadJson)
-    {
-        if (string.IsNullOrEmpty(payloadJson)) return;
-
-        try
+        public string ToBsonPayload()
         {
-            this.Payload = JsonConvert.DeserializeObject<object>(payloadJson);
+            return JsonConvert.SerializeObject(this.Payload);
         }
-        catch (Exception ex)
+
+        // Load lại Payload từ chuỗi JSON trong Bson
+        public void LoadFromBsonPayload(string payloadJson)
         {
-            // Log nếu cần thiết
-            this.Payload = null;
+            if (string.IsNullOrEmpty(payloadJson)) return;
+
+            try
+            {
+                this.Payload = JsonConvert.DeserializeObject<object>(payloadJson);
+            }
+            catch (Exception ex)
+            {
+                // Log nếu cần thiết
+                this.Payload = null;
+            }
         }
-    }
     }
 
     public class ZaloMember
