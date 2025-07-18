@@ -3,6 +3,10 @@
   "WorkspaceRootPath": "C:\\Apollo\\Code\\Datahub.mess\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Apollo\\Code\\Datahub.mess\\microservice.mess\\microservice.mess.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:microservice.mess\\microservice.mess.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Apollo\\Code\\Datahub.mess\\microservice.mess\\Controllers\\ZaloController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:microservice.mess\\Controllers\\ZaloController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -43,19 +47,32 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
+              "Title": "microservice.mess.csproj",
+              "DocumentMoniker": "C:\\Apollo\\Code\\Datahub.mess\\microservice.mess\\microservice.mess.csproj",
+              "RelativeDocumentMoniker": "microservice.mess\\microservice.mess.csproj",
+              "ToolTip": "C:\\Apollo\\Code\\Datahub.mess\\microservice.mess\\microservice.mess.csproj",
+              "RelativeToolTip": "microservice.mess\\microservice.mess.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2025-07-14T03:58:51.533Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
               "Title": "ZaloController.cs",
               "DocumentMoniker": "C:\\Apollo\\Code\\Datahub.mess\\microservice.mess\\Controllers\\ZaloController.cs",
               "RelativeDocumentMoniker": "microservice.mess\\Controllers\\ZaloController.cs",
               "ToolTip": "C:\\Apollo\\Code\\Datahub.mess\\microservice.mess\\Controllers\\ZaloController.cs",
               "RelativeToolTip": "microservice.mess\\Controllers\\ZaloController.cs",
-              "ViewState": "AgIAAIQAAAAAAAAAAAAAAJYAAAAJAAAAAAAAAA==",
+              "ViewState": "AgIAAI0AAAAAAAAAAAAAAJYAAAAJAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-06-26T08:09:59.997Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "SignalRService.cs",
               "DocumentMoniker": "C:\\Apollo\\Code\\Datahub.mess\\microservice.mess\\Services\\SignalRService.cs",
               "RelativeDocumentMoniker": "microservice.mess\\Services\\SignalRService.cs",
@@ -67,7 +84,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "ZaloService.cs",
               "DocumentMoniker": "C:\\Apollo\\Code\\Datahub.mess\\microservice.mess\\Services\\ZaloService.cs",
               "RelativeDocumentMoniker": "microservice.mess\\Services\\ZaloService.cs",
@@ -79,7 +96,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 5,
               "Title": "MongoRepository.cs",
               "DocumentMoniker": "C:\\Apollo\\Code\\Datahub.mess\\microservice.mess\\Repositories\\MongoRepository.cs",
               "RelativeDocumentMoniker": "microservice.mess\\Repositories\\MongoRepository.cs",
@@ -91,7 +108,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 6,
               "Title": "NotificationHub.cs",
               "DocumentMoniker": "C:\\Apollo\\Code\\Datahub.mess\\microservice.mess\\Hubs\\NotificationHub.cs",
               "RelativeDocumentMoniker": "microservice.mess\\Hubs\\NotificationHub.cs",
@@ -103,7 +120,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 7,
               "Title": "NotificationController.cs",
               "DocumentMoniker": "C:\\Apollo\\Code\\Datahub.mess\\microservice.mess\\Controllers\\NotificationController.cs",
               "RelativeDocumentMoniker": "microservice.mess\\Controllers\\NotificationController.cs",
@@ -115,7 +132,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
               "Title": "EmailService.cs",
               "DocumentMoniker": "C:\\Apollo\\Code\\Datahub.mess\\microservice.mess\\Services\\EmailService.cs",
               "RelativeDocumentMoniker": "microservice.mess\\Services\\EmailService.cs",

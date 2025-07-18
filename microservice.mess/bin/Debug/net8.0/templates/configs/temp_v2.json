@@ -1,0 +1,34 @@
+{
+  "Charts": [
+    {
+      "MergeField": "ANH_1",
+      "Width": 550,
+      "Height": 350
+    },
+    {
+      "MergeField": "ANH_2",
+      "Width": 250,
+      "Height": 250
+    },
+    {
+      "MergeField": "ANH_3",
+      "Width": 250,
+      "Height": 250
+    }
+  ],
+  "TemplateExcel": "ChartDB_No2.xlsx",
+  "MergeFields": {
+    "TIEU_DE": "",
+    "NGAY": "",
+    "NGUOI_LAP": "",
+    "BAN_TIN_NGAY": "",
+    "TITLE": "",
+    "LOCATION": ""
+  },
+  "Data": {
+    
+  },
+  "DataJson": {
+
+  }
+}

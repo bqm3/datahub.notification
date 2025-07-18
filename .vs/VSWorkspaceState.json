@@ -1,8 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\microservice.mess",
-    "\\microservice.mess\\Controllers",
+    "\\microservice.mess\\bin\\Debug",
+    "\\microservice.mess\\bin\\Debug\\net8.0",
+    "\\microservice.mess\\bin\\Debug\\net8.0\\#License#",
     "\\microservice.mess\\Hubs",
     "\\microservice.mess\\Middleware",
     "\\microservice.mess\\Models",
@@ -10,5 +11,6 @@
     "\\microservice.mess\\Repositories",
     "\\microservice.mess\\Services"
   ],
+  "SelectedNode": "\\microservice.mess",
   "PreviewInSolutionExplorer": false
 }

@@ -28,7 +28,7 @@ namespace microservice.mess.Controllers
 
         [HttpPost("send")]
         public async Task<IActionResult> SendNotification(
-           [FromBody] SendMailByTagRequest request)
+           [FromBody] SendMailByNameRequest request)
         {
             if (request == null || request.To == null || request.To.Count == 0)
             {
@@ -41,15 +41,15 @@ namespace microservice.mess.Controllers
         }
 
         [HttpPost("sender-account")]
-        public async Task<IActionResult> CreateSenderAccount([FromBody] MailSenderAccountModel model)
+        public async Task<IActionResult> CreateSenderAccount([FromBody] UserAccountModel model)
         {
             await _repo.CreateAccountAsync(model);
             return Ok(new { success = true, message = "Sender account created" });
         }
 
 
-        [HttpPost("send-by-tag")]
-        public async Task<IActionResult> SendEmailByTag([FromBody] SendMailByTagRequest request)
+        [HttpPost("send-by-name")]
+        public async Task<IActionResult> SendEmailByName([FromBody] SendMailByNameRequest request)
         {
             await _mail.SendEmailAsync(request);
             return Ok(new { success = true, message = "Email sent successfully" });
@@ -57,7 +57,7 @@ namespace microservice.mess.Controllers
 
 
         [HttpPost("template")]
-        public async Task<IActionResult> CreateTemplate([FromBody] MailTemplateModel model)
+        public async Task<IActionResult> CreateTemplate([FromBody] AllMessageTemplate model)
         {
             await _repo.CreateAsync(model);
             return Ok(new { success = true, message = "Created successfully", model.Id });
@@ -70,10 +70,10 @@ namespace microservice.mess.Controllers
             return Ok(new { success = true, data = list });
         }
 
-        [HttpGet("{tag}")]
-        public async Task<IActionResult> GetTemplateByTag(string tag)
+        [HttpGet("{name}")]
+        public async Task<IActionResult> GetTemplateByName(string name)
         {
-            var template = await _repo.GetByTagAsync(tag);
+            var template = await _repo.GetByNameAsync(name);
             if (template == null) return NotFound();
             return Ok(new { success = true, data = template });
         }

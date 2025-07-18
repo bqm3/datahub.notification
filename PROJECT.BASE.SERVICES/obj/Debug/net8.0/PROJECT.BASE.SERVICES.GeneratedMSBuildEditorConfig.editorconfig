@@ -8,6 +8,6 @@ build_property.PlatformNeutralAssembly =
 build_property.EnforceExtendedAnalyzerRules = 
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = PROJECT.BASE.SERVICES
-build_property.ProjectDir = C:\Apollo\Code\datahub.integration\PROJECT.BASE.SERVICES\
+build_property.ProjectDir = C:\Apollo\Code\Datahub.mess\PROJECT.BASE.SERVICES\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 

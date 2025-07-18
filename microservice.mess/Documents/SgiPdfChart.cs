@@ -6,11 +6,20 @@ using System.IO;
 using System.Data;
 using microservice.mess.Models.Message;
 using microservice.mess.Models;
-
+using microservice.mess.Services.Storage;
+using Newtonsoft.Json;
+// Add the correct namespace for IStorageService below if it exists, for example:
 namespace microservice.mess.Documents
 {
+    // If IStorageService does not exist, define a minimal interface for compilation:
     public class SgiPdfChart
     {
+        private readonly IStorageService _storageService;
+
+        public SgiPdfChart(IStorageService storageService)
+        {
+            _storageService = storageService;
+        }
         public void GenerateCharts(ChartInputConfig config)
         {
             var workbook = new Workbook();
@@ -75,380 +84,182 @@ namespace microservice.mess.Documents
             ExportChart(chart2, Path.Combine(exportDir, "chart2_pie.png"));
             ExportChart(chart3, Path.Combine(exportDir, "chart3_column.png"));
         }
-
-        // public void GenerateFromJson(ChartJsonRequest request)
-        // {
-        //     var workbook = new Workbook();
-        //     var sheet = workbook.Worksheets[0];
-        //     sheet.Name = "Data";
-
-        //     if (request.Data.Count == 0)
-        //     {
-        //         Console.WriteLine("No data provided.");
-        //         return;
-        //     }
-
-        //     // Skip the header row and get actual data
-        //     var dataRows = request.Data.Skip(1).ToList();
-        //     if (dataRows.Count == 0)
-        //     {
-        //         Console.WriteLine(" No valid data after filtering.");
-        //         return;
-        //     }
-
-        //     Console.WriteLine($"Processing {dataRows.Count} data rows");
-
-        //     // Get column names from first row
-        //     var columnNames = request.Data[0].Keys.ToList();
-
-        //     // Write headers to Excel
-        //     for (int col = 0; col < columnNames.Count; col++)
-        //     {
-        //         sheet.Cells[0, col].PutValue(columnNames[col]);
-        //     }
-
-        //     // Write data to Excel (converting to proper types)
-        //     for (int row = 0; row < dataRows.Count; row++)
-        //     {
-        //         var dataRow = dataRows[row];
-        //         for (int col = 0; col < columnNames.Count; col++)
-        //         {
-        //             var columnName = columnNames[col];
-        //             var value = dataRow[columnName];
-
-        //             // Convert to appropriate type
-        //             if (value is long l)
-        //             {
-        //                 sheet.Cells[row + 1, col].PutValue((double)l);
-        //             }
-        //             else if (value is int i)
-        //             {
-        //                 sheet.Cells[row + 1, col].PutValue((double)i);
-        //             }
-        //             else if (value is double d)
-        //             {
-        //                 sheet.Cells[row + 1, col].PutValue(d);
-        //             }
-        //             else if (value is string s && double.TryParse(s, out double num))
-        //             {
-        //                 sheet.Cells[row + 1, col].PutValue(num);
-        //             }
-        //             else
-        //             {
-        //                 sheet.Cells[row + 1, col].PutValue(value?.ToString() ?? "");
-        //             }
-        //         }
-        //     }
-
-        //     int dataRowCount = dataRows.Count;
-        //     var exportDir = "Exports";
-        //     if (!Directory.Exists(exportDir)) Directory.CreateDirectory(exportDir);
-
-        //     int chartIndex = 1;
-        //     foreach (var chartDef in request.Charts)
-        //     {
-        //         Console.WriteLine($"Creating chart: {chartDef.Title}");
-
-        //         ChartType chartType;
-        //         try
-        //         {
-        //             chartType = (ChartType)Enum.Parse(typeof(ChartType), chartDef.Type, ignoreCase: true);
-        //         }
-        //         catch (Exception ex)
-        //         {
-        //             Console.WriteLine($" Invalid chart type '{chartDef.Type}': {ex.Message}");
-        //             continue;
-        //         }
-
-        //         // Add chart
-        //         var chart = sheet.Charts[sheet.Charts.Add(chartType, chartIndex * 20, 0, chartIndex * 20 + 15, 10)];
-
-        //         // Set chart title
-        //         chart.Title.Text = chartDef.Title;
-        //         chart.Title.Font.Name = "Arial Unicode MS";
-        //         chart.Title.Font.Size = 12;
-
-        //         // Clear any existing series
-        //         chart.NSeries.Clear();
-
-        //         // Find category column index
-        //         int categoryColIndex = columnNames.IndexOf(chartDef.Category);
-        //         if (categoryColIndex < 0)
-        //         {
-        //             Console.WriteLine($" Category column '{chartDef.Category}' not found.");
-        //             continue;
-        //         }
-
-        //         // Add series
-        //         bool hasValidSeries = false;
-        //         foreach (var seriesName in chartDef.Series)
-        //         {
-        //             int seriesColIndex = columnNames.IndexOf(seriesName);
-        //             if (seriesColIndex < 0)
-        //             {
-        //                 Console.WriteLine($" Series column '{seriesName}' not found.");
-        //                 continue;
-        //             }
-
-        //             // Create the data range for this series (skip header row)
-        //             string seriesRange = $"{GetColLetter(seriesColIndex)}2:{GetColLetter(seriesColIndex)}{dataRowCount + 1}";
-        //             string categoryRange = $"{GetColLetter(categoryColIndex)}2:{GetColLetter(categoryColIndex)}{dataRowCount + 1}";
-
-        //             Console.WriteLine($"Adding series '{seriesName}' with range: {seriesRange}");
-        //             Console.WriteLine($"Category range: {categoryRange}");
-
-        //             // Add series
-        //             var seriesIndex = chart.NSeries.Add(seriesRange, true);
-        //             chart.NSeries[seriesIndex].Name = seriesName;
-        //             chart.NSeries[seriesIndex].XValues = categoryRange;
-
-        //             hasValidSeries = true;
-        //         }
-
-        //         if (!hasValidSeries)
-        //         {
-        //             Console.WriteLine($" No valid series found for chart '{chartDef.Title}'");
-        //             continue;
-        //         }
-
-        //         // Configure chart based on type
-        //         if (chartType == ChartType.Pie || chartType == ChartType.Doughnut)
-        //         {
-        //             // For pie/doughnut charts, show data labels
-        //             foreach (var series in chart.NSeries)
-        //             {
-        //                 series.DataLabels.ShowValue = true;
-        //                 series.DataLabels.ShowPercentage = true;
-        //                 series.DataLabels.ShowCategoryName = true;
-        //             }
-        //         }
-        //         else if (chartType == ChartType.Column)
-        //         {
-        //             // For column charts, show values on bars
-        //             foreach (var series in chart.NSeries)
-        //             {
-        //                 series.DataLabels.ShowValue = true;
-        //             }
-        //         }
-
-        //         // Set chart area properties
-        //         chart.ChartArea.Border.IsVisible = false;
-        //         chart.PlotArea.Border.IsVisible = false;
-
-        //         // Export chart
-        //         try
-        //         {
-        //             // Force calculation
-        //             workbook.CalculateFormula();
-        //             chart.Calculate();
-
-        //             // Create image options
-        //             var imageOptions = new ImageOrPrintOptions();
-        //             imageOptions.ImageType = ImageType.Png;
-        //             imageOptions.Quality = 100;
-        //             imageOptions.HorizontalResolution = 300;
-        //             imageOptions.VerticalResolution = 300;
-
-        //             string fileName = $"chart{chartIndex}_{chartDef.Type.ToLower()}.png";
-        //             string filePath = Path.Combine(exportDir, fileName);
-
-        //             chart.ToImage(filePath, imageOptions);
-        //             Console.WriteLine($"=> Chart exported: {fileName}");
-        //         }
-        //         catch (Exception ex)
-        //         {
-        //             Console.WriteLine($" Error exporting chart: {ex.Message}");
-        //         }
-
-        //         chartIndex++;
-        //     }
-
-        //     // Save workbook for debugging
-        //     try
-        //     {
-        //         workbook.Save(Path.Combine(exportDir, "debug.xlsx"), SaveFormat.Xlsx);
-        //         Console.WriteLine("=> Workbook saved: debug.xlsx");
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         Console.WriteLine($" Error saving workbook: {ex.Message}");
-        //     }
-        // }
-
-        // // Helper method to convert column index to Excel column letter
-        // private string GetColLetter(int colIndex)
-        // {
-        //     string result = "";
-        //     while (colIndex >= 0)
-        //     {
-        //         result = (char)('A' + colIndex % 26) + result;
-        //         colIndex = colIndex / 26 - 1;
-        //     }
-        //     return result;
-        // }
-
         private void ExportChart(Chart chart, string filePath)
         {
             var options = new ImageOrPrintOptions
             {
                 ImageType = ImageType.Png,
-                HorizontalResolution = 200,
+                HorizontalResolution = 150,
                 VerticalResolution = 200
             };
 
             using var stream = new FileStream(filePath, FileMode.Create);
             chart.ToImage(stream, options);
         }
-
-        public void GenerateFromJson(ChartJsonRequest request)
+        private List<string> ResolveSeriesAndEnsureTotal(
+            List<string> configSeries,
+            List<string> allColumns,
+            List<Dictionary<string, object>> dataRows,
+            string categoryCol,
+            out bool totalWasGenerated
+            )
         {
-            var workbook = new Workbook();
-            var sheet = workbook.Worksheets[0];
-            sheet.Name = "Data";
+            totalWasGenerated = false;
 
+            var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                categoryCol, "Tổng", "Total", "Sum"
+            };
+
+            bool autoDetect = configSeries == null || configSeries.Count == 0 || configSeries.Contains("__AUTO_PLATFORM__");
+            List<string> resultSeries = autoDetect
+                ? allColumns.Where(col => !excluded.Contains(col)).ToList()
+                : configSeries;
+
+            // Nếu biểu đồ yêu cầu dùng "Tổng" nhưng cột này không tồn tại => tạo thủ công
+            if (allColumns.All(c => !string.Equals(c, "Tổng", StringComparison.OrdinalIgnoreCase)))
+            {
+                var sumColName = "Tổng";
+                foreach (var row in dataRows)
+                {
+                    double sum = 0;
+                    foreach (var col in resultSeries)
+                    {
+                        if (row.TryGetValue(col, out var val) && double.TryParse(val?.ToString(), out double num))
+                            sum += num;
+                    }
+                    row[sumColName] = sum;
+                }
+
+                allColumns.Add(sumColName);
+                totalWasGenerated = true;
+            }
+
+            return resultSeries;
+        }
+
+        public async Task<string> GenerateFromJson(ChartJsonRequest request, string templateName, string wordOutputPath, string pdfOutputPath)
+        {
             if (request.Data.Count == 0)
-            {
-                Console.WriteLine(" No data provided.");
-                return;
-            }
+                return "No data provided";
 
-            var dataRows = request.Data.Skip(1).ToList(); 
-            if (dataRows.Count == 0)
-            {
-                Console.WriteLine(" No valid data after filtering.");
-                return;
-            }
+            var dataRows = request.Data.ToList();
 
             var columnNames = request.Data[0].Keys.ToList();
-
-            // Write headers
-            for (int col = 0; col < columnNames.Count; col++)
-                sheet.Cells[0, col].PutValue(columnNames[col]);
-
-            // Write data
-            for (int row = 0; row < dataRows.Count; row++)
-            {
-                var dataRow = dataRows[row];
-                for (int col = 0; col < columnNames.Count; col++)
-                {
-                    var columnName = columnNames[col];
-                    var value = dataRow[columnName];
-
-                    if (value is long l) sheet.Cells[row + 1, col].PutValue((double)l);
-                    else if (value is int i) sheet.Cells[row + 1, col].PutValue((double)i);
-                    else if (value is double d) sheet.Cells[row + 1, col].PutValue(d);
-                    else if (value is string s && double.TryParse(s, out double num)) sheet.Cells[row + 1, col].PutValue(num);
-                    else sheet.Cells[row + 1, col].PutValue(value?.ToString() ?? "");
-                }
-            }
-
             var exportDir = "Exports";
             if (!Directory.Exists(exportDir)) Directory.CreateDirectory(exportDir);
 
-            int chartIndex = 1;
-            List<string> exportedChartPaths = new();
+            // Load config từ template
+            string configPath = Path.Combine("templates/configs", Path.ChangeExtension(templateName, ".json"));
+            if (!File.Exists(configPath))
+                throw new Exception($"Không tìm thấy cấu hình cho template: {templateName}");
 
-            foreach (var chartDef in request.Charts)
+            var configJson = await File.ReadAllTextAsync(configPath);
+            var templateConfig = JsonConvert.DeserializeObject<TemplateConfig>(configJson)!;
+
+            // Load Excel template
+            var excelTemplatePath = Path.Combine("templates", templateConfig?.TemplateExcel);
+            var workbook = File.Exists(excelTemplatePath)
+                ? new Workbook(excelTemplatePath)
+                : throw new Exception("Excel template file not found: " + excelTemplatePath);
+
+            var sheetData = workbook.Worksheets["SheetData"] ?? workbook.Worksheets[0];
+            sheetData.Name = "SheetData";
+
+            // Ghi header
+            for (int col = 0; col < columnNames.Count; col++)
+                sheetData.Cells[0, col].PutValue(columnNames[col]);
+
+            // Ghi dữ liệu
+            for (int row = 0; row < dataRows.Count; row++)
             {
-                Console.WriteLine($" Creating chart: {chartDef.Title}");
-
-                ChartType chartType;
-                try
+                for (int col = 0; col < columnNames.Count; col++)
                 {
-                    chartType = (ChartType)Enum.Parse(typeof(ChartType), chartDef.Type, true);
+                    var value = dataRows[row][columnNames[col]];
+                    if (value is long l) sheetData.Cells[row + 1, col].PutValue((double)l);
+                    else if (value is int i) sheetData.Cells[row + 1, col].PutValue((double)i);
+                    else if (value is double d) sheetData.Cells[row + 1, col].PutValue(d);
+                    else if (value is string s && double.TryParse(s, out double num)) sheetData.Cells[row + 1, col].PutValue(num);
+                    else sheetData.Cells[row + 1, col].PutValue(value?.ToString() ?? "");
                 }
-                catch
+            }
+
+            // Export chart images based on chart name
+            var fieldToImageMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var sheetChart = workbook.Worksheets["SheetChart"];
+
+            foreach (var chart in sheetChart.Charts)
+            {
+                var chartName = chart.Name;
+                if (string.IsNullOrWhiteSpace(chartName))
                 {
-                    Console.WriteLine($" Invalid chart type: {chartDef.Type}");
+                    Console.WriteLine("Chart without name skipped.");
                     continue;
                 }
 
-                var chart = sheet.Charts[sheet.Charts.Add(chartType, chartIndex * 20, 0, chartIndex * 20 + 15, 10)];
-                chart.Title.Text = chartDef.Title;
-                chart.Title.Font.Name = "Arial Unicode MS";
-                chart.Title.Font.Size = 12;
-                chart.NSeries.Clear();
-
-                int categoryColIndex = columnNames.IndexOf(chartDef.Category);
-                if (categoryColIndex < 0)
+                var matchedConfig = templateConfig.Charts.FirstOrDefault(c => c.MergeField.Equals(chartName, StringComparison.OrdinalIgnoreCase));
+                if (matchedConfig == null)
                 {
-                    Console.WriteLine($" Category column '{chartDef.Category}' not found.");
+                    Console.WriteLine($"Chart name '{chartName}' not found in config, skipped.");
                     continue;
                 }
 
-                bool hasSeries = false;
-                foreach (var seriesName in chartDef.Series)
-                {
-                    int seriesColIndex = columnNames.IndexOf(seriesName);
-                    if (seriesColIndex < 0)
-                    {
-                        Console.WriteLine($" Series column '{seriesName}' not found.");
-                        continue;
-                    }
-
-                    string seriesRange = $"=Data!{GetColLetter(seriesColIndex)}2:{GetColLetter(seriesColIndex)}{dataRows.Count + 1}";
-                    string categoryRange = $"=Data!{GetColLetter(categoryColIndex)}2:{GetColLetter(categoryColIndex)}{dataRows.Count + 1}";
-
-                    var index = chart.NSeries.Add(seriesRange, true);
-                    chart.NSeries[index].Name = seriesName;
-                    chart.NSeries[index].XValues = categoryRange;
-
-                    hasSeries = true;
-                }
-
-                if (!hasSeries)
-                {
-                    Console.WriteLine($" No valid series for chart '{chartDef.Title}'");
-                    continue;
-                }
-
-                if (chartType == ChartType.Pie || chartType == ChartType.Doughnut)
-                {
-                    foreach (Series series in chart.NSeries)
-                    {
-                        series.DataLabels.ShowValue = true;
-                        series.DataLabels.ShowPercentage = true;
-                        series.DataLabels.ShowCategoryName = true;
-                    }
-                }
-                else
-                {
-                    foreach (Series series in chart.NSeries)
-                    {
-                        series.DataLabels.ShowValue = true;
-                    }
-                }
-
-                chart.ChartArea.Border.IsVisible = false;
-                chart.PlotArea.Border.IsVisible = false;
-
-                workbook.CalculateFormula();
-                chart.Calculate();
-
-                var imagePath = Path.Combine(exportDir, $"chart{chartIndex}_{chartDef.Type.ToLower()}.png");
+                var imagePath = Path.Combine(exportDir, $"chart_{chartName}.png");
                 chart.ToImage(imagePath, new ImageOrPrintOptions
                 {
                     ImageType = ImageType.Png,
                     Quality = 100,
-                    HorizontalResolution = 300,
-                    VerticalResolution = 300
+                    HorizontalResolution = 96,
+                    VerticalResolution = 96
                 });
 
-                exportedChartPaths.Add(imagePath);
-                Console.WriteLine($" Exported: {imagePath}");
-                chartIndex++;
+                fieldToImageMap[chartName] = imagePath;
+                Console.WriteLine($"Exported chart '{chartName}' to {imagePath}");
             }
 
-            // workbook.Save(Path.Combine(exportDir, "debug.xlsx"), SaveFormat.Xlsx);
 
-            // Export to Word template
-            new ChartWordExporter().InsertChartsIntoTemplate("templates/temp.docx",
-                    Path.Combine(exportDir, "final_report.docx"),
-                    exportedChartPaths);
-            string wordOutputPath = "Exports/final_report.docx";
-            string pdfOutputPath = "Exports/final_report.pdf";
+            // 1. Tạo file Word
+            string templatePath = Path.Combine("templates", templateName);
+            new ChartWordExporter().InsertChartsAndMergeFields(
+                 templatePath,
+                 wordOutputPath,
+                 fieldToImageMap,
+                 request.MergeFields ?? templateConfig.MergeFields ?? new(),
+                 request.DataJson,
+                 templateConfig
+            );
 
-            // new ChartWordExporter().ExportToPdf(wordOutputPath, pdfOutputPath);
+            string pdfPath = pdfOutputPath; 
+
+            // 1. Export PDF trước
+            try
+            {
+                new ChartWordExporter().ExportToPdf(wordOutputPath, pdfPath);
+                Console.WriteLine("pdfPath 2: " + pdfPath);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(" ExportToPdf failed: " + ex.Message);
+                throw;
+            }
+
+
+            // 2. Kiểm tra file tồn tại và dung lượng
+            if (!File.Exists(pdfPath))
+                throw new FileNotFoundException("PDF file not found after export.", pdfPath);
+
+            FileInfo fi = new FileInfo(pdfPath);
+
+            if (fi.Length == 0)
+                throw new Exception("PDF file is empty — export may have failed.");
+
+            // 3. Upload
+            string fileName = Path.GetFileName(pdfPath);
+            string fileUrl = await _storageService.UploadPdfAsync(pdfPath, "reports", fileName);
+
+            // 4. Trả về kết quả
+            return fileUrl ?? pdfPath;
+
         }
 
         private string GetColLetter(int colIndex)

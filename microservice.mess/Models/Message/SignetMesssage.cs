@@ -2,7 +2,10 @@ using microservice.mess.Models;
 using MongoDB.Bson;
 using System.Data;
 using MongoDB.Bson.Serialization.Attributes;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System;
+using System.Drawing;
 
 namespace microservice.mess.Models.Message
 {
@@ -32,25 +35,25 @@ namespace microservice.mess.Models.Message
     }
 
 
-    public class SgiMessageTemplate
-    {
-        [BsonId]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string? Id { get; set; }
+    // public class AllMessageTemplate
+    // {
+    //     [BsonId]
+    //     [BsonRepresentation(BsonType.ObjectId)]
+    //     public string? Id { get; set; }
 
-        [BsonElement("name")]
-        public string Name { get; set; } = string.Empty;
+    //     [BsonElement("name")]
+    //     public string Name { get; set; } = string.Empty;
 
-        [BsonElement("skip_receiver_error")]
-        public bool Skip_Receiver_Error { get; set; }
+    //     [BsonElement("SkipReceiverError")]
+    //     public bool SkipReceiverError { get; set; }
 
-        [BsonElement("receivers")]
-        public List<string> Receivers { get; set; } = new();
+    //     [BsonElement("receivers")]
+    //     public List<string> Receivers { get; set; } = new();
 
-        [BsonElement("block_json")]
-        public string BlockJson { get; set; } = "{}";
-        public DateTime CreatedAt { get; set; }
-    }
+    //     [BsonElement("block_json")]
+    //     public string BlockJson { get; set; } = "{}";
+    //     public DateTime CreatedAt { get; set; }
+    // }
 
     public class SgiDataPdfTemplate
     {
@@ -84,7 +87,7 @@ namespace microservice.mess.Models.Message
         public string Name { get; set; } = string.Empty;
 
         public List<string> Receivers { get; set; } = new();
-        public bool Skip_Receiver_Error { get; set; }
+        public bool SkipReceiverError { get; set; }
 
         // public string MessageType { get; set; } = "normal";
         // public int Version { get; set; } = 3;
@@ -116,8 +119,8 @@ namespace microservice.mess.Models.Message
         public List<string> Receivers { get; set; } = new();
         [BsonElement("block")]
         public SignetMessage Block { get; set; } = new();
-        [BsonElement("skip_receiver_error")]
-        public bool? Skip_Receiver_Error { get; set; } = new();
+        [BsonElement("SkipReceiverError")]
+        public bool? SkipReceiverError { get; set; } = new();
     }
 
     public class SignetMessage
@@ -183,18 +186,6 @@ namespace microservice.mess.Models.Message
         public SignetBodyFieldItem? Data { get; set; }
         [BsonElement("label")]
         public SignetBodyItem? Label { get; set; }
-    }
-
-    public class SignetUserComponent
-    {
-        [BsonId]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string? Id { get; set; }
-        public string UserName { get; set; }
-        public string? FullName { get; set; }
-        public string? Avatar { get; set; }
-        public string? Role { get; set; }
-        public string? Group { get; set; }
     }
 
     public class SignetBodyFieldItem
@@ -303,32 +294,72 @@ namespace microservice.mess.Models.Message
     }
 
     public class ChartRequestDto
-{
-    public List<Dictionary<string, object>> Data { get; set; } = new();
+    {
+        public List<Dictionary<string, object>> Data { get; set; } = new();
 
-    public string CategoryColumn { get; set; } = "";
-    public string TotalColumn { get; set; } = "";
-    public string FacebookColumn { get; set; } = "";
-    public string TelegramColumn { get; set; } = "";
+        public string CategoryColumn { get; set; } = "";
+        public string TotalColumn { get; set; } = "";
+        public string FacebookColumn { get; set; } = "";
+        public string TelegramColumn { get; set; } = "";
 
-    public string DoughnutTitle { get; set; } = "Biểu đồ Doughnut";
-    public string PieTitle { get; set; } = "Biểu đồ Pie";
-    public string ColumnTitle { get; set; } = "Biểu đồ Cột";
-}
+        public string DoughnutTitle { get; set; } = "Biểu đồ Doughnut";
+        public string PieTitle { get; set; } = "Biểu đồ Pie";
+        public string ColumnTitle { get; set; } = "Biểu đồ Cột";
+    }
 
-public class ChartJsonRequest
-{
-    public List<Dictionary<string, object>> Data { get; set; } = new();
-    public List<ChartDefinition> Charts { get; set; } = new();
-}
+    public class ChartJsonRequest
+    {
+        public List<Dictionary<string, object>> Data { get; set; } = new();
+        public List<ChartDefinition> Charts { get; set; } = new();
+        public string TemplateName { get; set; } = "";       // ví dụ: "temp.docx"
+        public string OutputFileName { get; set; } = "";     // ví dụ: "report_for_user1.docx"
+        public Dictionary<string, string> MergeFields { get; set; } = new(); // ví dụ: { "TIEU_DE": "Báo cáo quý", "NGAY": "14/07/2025" }
+        public Dictionary<string, string> Files { get; set; } = new(); // ví dụ: { "File_Hash": "ixxx!abc..." }
 
-public class ChartDefinition
-{
-    public string Type { get; set; } = ""; // "Pie", "Column", etc.
-    public string Title { get; set; } = "";
-    public List<string> Series { get; set; } = new();
-    public string Category { get; set; } = "";
-}
+        [JsonPropertyName("dataJson")]
+        public List<DataJsonCategory> DataJson { get; set; } = new();
+        // public Dictionary<string, string>  Data { get; set; } = new();
+    }
+
+    public class DataJsonCategory
+    {
+        public string Category { get; set; }
+        public List<ArticleItem> Data { get; set; }
+    }
+
+    public class ArticleItem
+    {
+        public string? Image { get; set; }
+        public string? Title { get; set; }
+        public string? Content { get; set; }
+        public string? Author { get; set; }
+        public string? CreatedAt { get; set; }
+        public string? ArticleUrl { get; set; }
+    }
+
+    public class TemplateConfig
+    {
+        public List<ChartDefinition> Charts { get; set; } = new();
+
+        public string? TemplateExcel { get; set; }
+        public Dictionary<string, string>? MergeFields { get; set; }
+    }
+
+    public class ChartDefinition
+    {
+        public string MergeField { get; set; } = "";
+        public int? Width { get; set; }
+        public int? Height { get; set; }
+    }
+
+    public class MergeFieldStyle
+    {
+        public string Value { get; set; } = "";
+        public string FontName { get; set; } = "Arial";
+        public double FontSize { get; set; } = 12;
+        public Color FontColor { get; set; }
+        public bool Bold { get; set; } = false;
+    }
 
 
 }

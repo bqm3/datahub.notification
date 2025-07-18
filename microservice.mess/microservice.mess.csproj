@@ -14,7 +14,7 @@
   <PackageReference Include="ClosedXML" Version="0.105.0" />
   <PackageReference Include="Elastic.CommonSchema.Log4net" Version="8.6.0" />
   <PackageReference Include="EPPlus" Version="8.0.7" />
-  <PackageReference Include="FirebaseAdmin" Version="3.2.0" />
+  <PackageReference Include="FirebaseAdmin" Version="3.3.0" />
   <PackageReference Include="Google.Apis.Auth" Version="1.70.0" />
   <PackageReference Include="Hangfire" Version="1.8.20" />
   <PackageReference Include="Hangfire.AspNetCore" Version="1.8.20" />
@@ -35,6 +35,7 @@
   <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.6" />
   <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.0" />
   <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.9.1" />
   <PackageReference Include="QuestPDF" Version="2025.7.0" />
   <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
   <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
@@ -42,6 +43,7 @@
   <PackageReference Include="Serilog.Formatting.Elasticsearch" Version="10.0.0" />
   <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
   <PackageReference Include="Serilog.Sinks.Elasticsearch" Version="10.0.0" />
+  <PackageReference Include="StackExchange.Redis" Version="2.8.41" />
   <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.1" />
   <PackageReference Include="Confluent.Kafka" Version="2.11.0" />
   <PackageReference Include="MailKit" Version="4.2.0" />

@@ -30,68 +30,7 @@ namespace microservice.mess.Kafka.Consumer
             {
                 using var scope = _serviceProvider.CreateScope();
                 var services = scope.ServiceProvider;
-
-                // // SIGNET consumer
-                // try
-                // {
-                //     var signetConsumer = new SignetKafkaConsumer(
-                //         services.GetRequiredService<SignetService>(),
-                //         services.GetRequiredService<IHttpClientFactory>(),
-                //         services.GetRequiredService<ILogger<SignetKafkaConsumer>>(),
-                //         services.GetRequiredService<LogMessageRepository>(),
-                //         services.GetRequiredService<KafkaProducerService>()
-                //     );
-
-                //     _ = signetConsumer.StartAsync(stoppingToken);
-                //     _logger.LogInformation("Started SignetKafkaConsumer");
-                // }
-                // catch (Exception ex)
-                // {
-                //     _logger.LogError(ex, "SignetKafkaConsumer failed to start.");
-                // }
-
-
-                // // MAIL consumer
-                // try
-                // {
-                //     var mailConsumer = new MailKafkaConsumer(
-                //         services.GetRequiredService<MailService>(),
-                //         services.GetRequiredService<IHttpClientFactory>(),
-                //         services.GetRequiredService<IOptions<SmtpSettings>>(),
-                //         services.GetRequiredService<ILogger<MailKafkaConsumer>>(),
-                //         services.GetRequiredService<LogMessageRepository>(),
-                //         services.GetRequiredService<KafkaProducerService>()
-                //     );
-
-                //     _ = mailConsumer.StartAsync(stoppingToken);
-                //     _logger.LogInformation("Started MailKafkaConsumer");
-                // }
-                // catch (Exception ex)
-                // {
-                //     _logger.LogError(ex, "MailKafkaConsumer failed to start.");
-                // }
-
-                // // ZALO consumer
-                // try
-                // {
-                //     var zaloConsumer = new ZaloKafkaConsumer(
-                //         services.GetRequiredService<ZaloService>(),
-                //         services.GetRequiredService<ZaloRepository>(),
-                //         services.GetRequiredService<IHttpClientFactory>(),
-                //         services.GetRequiredService<IOptions<ZaloSettings>>(),
-                //         services.GetRequiredService<ILogger<ZaloKafkaConsumer>>(),
-                //         services.GetRequiredService<LogMessageRepository>(),
-                //         services.GetRequiredService<KafkaProducerService>()
-                //     );
-
-                //     _ = zaloConsumer.StartAsync(stoppingToken);
-                //     _logger.LogInformation("Started ZaloKafkaConsumer");
-                // }
-                // catch (Exception ex)
-                // {
-                //     _logger.LogError(ex, "ZaloKafkaConsumer failed to start.");
-                // }
-
+                
                 // NOTIFY consumer
                 try
                 {

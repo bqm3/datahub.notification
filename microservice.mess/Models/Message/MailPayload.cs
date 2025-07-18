@@ -13,45 +13,21 @@ namespace microservice.mess.Models
         public string? From { get; set; } = null; // optional
     }
 
-    public class MailSenderAccountModel
-    {
-        [BsonId]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string Id { get; set; } = string.Empty;
-
-        public string DisplayName { get; set; } = string.Empty;
-
-        [BsonRequired]
-        public string FromEmail { get; set; } = string.Empty;
-
-        [BsonRequired]
-        public string Password { get; set; } = string.Empty;
-
-        public string SmtpClient { get; set; } = "smtp.gmail.com";
-        public int Port { get; set; } = 587;
-    }
-
-    public class MailTemplateModel
-    {
-        [BsonId]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string Id { get; set; } = string.Empty;
-        public string Tag { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-        public string Subject { get; set; } = string.Empty;
-        public string BodyHtml { get; set; } = string.Empty;
-        public string LogoUrl { get; set; } = string.Empty;
-        public List<string> Placeholders { get; set; } = new();
-        public DateTime CreatedAt { get; set; }
-    }
-
-    public class SendMailByTagRequest
+    public class SendMailByNameRequest
     {
         public List<string> To { get; set; } = new();
-        public string Tag { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
         public Dictionary<string, string> Data { get; set; } = new(); // để bind vào template
         public string? From { get; set; }
         public string? Subject { get; set; } // có thể override
+        public List<EmailAttachment>? Attachments { get; set; }
+    }
+
+    public class EmailAttachment
+    {
+        public string FileName { get; set; } = string.Empty;        // Tên file hiển thị
+        public string ContentBase64 { get; set; } = string.Empty;   // Nội dung file dưới dạng base64
+        public string MimeType { get; set; } = "application/pdf";   // Kiểu MIME
     }
 
     public enum RecurrenceType
@@ -60,15 +36,14 @@ namespace microservice.mess.Models
         Daily,      // Gửi mỗi ngày
         Weekly,     // Gửi mỗi tuần
         Hourly,      // Gửi theo giờ
-        Custom 
+        Custom
     }
     public class ScheduledEmailModel
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
         public string Id { get; set; } = string.Empty;
-
-        public string Tag { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
         public List<string> To { get; set; } = new();
         public Dictionary<string, string> Data { get; set; } = new();
         public string? Subject { get; set; }

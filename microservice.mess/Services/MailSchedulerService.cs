@@ -42,9 +42,9 @@ namespace microservice.mess.Services
                     {
                         if (!ShouldSendEmail(email, now)) continue;
 
-                        await mailService.SendEmailAsync(new SendMailByTagRequest
+                        await mailService.SendEmailAsync(new SendMailByNameRequest
                         {
-                            Tag = email.Tag,
+                            Name = email.Name,
                             To = email.To,
                             Data = email.Data,
                             Subject = email.Subject,
@@ -66,7 +66,15 @@ namespace microservice.mess.Services
                     }
                 }
 
-                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                }
+                catch (TaskCanceledException)
+                {
+                    // App is shutting down, swallow exception
+                }
+
             }
         }
 

@@ -36,22 +36,22 @@ namespace microservice.mess.Services
 
 
 
-        public async Task<ApiResponse<SgiMessageTemplate>> UpdateTemplateAsync(string name, SgiMessageTemplate template)
+        public async Task<ApiResponse<AllMessageTemplate>> UpdateTemplateAsync(string name, AllMessageTemplate template)
         {
             var existingTemplate = await GetTemplateByNameAsync(name);
             if (!existingTemplate.Success || existingTemplate.Data == null)
             {
-                return ApiResponse<SgiMessageTemplate>.ErrorResponse("Template not found.", 404);
+                return ApiResponse<AllMessageTemplate>.ErrorResponse("Template not found.", 404);
             }
 
             template.CreatedAt = existingTemplate.Data.CreatedAt; // Keep original creation date
             var result = await _signetRepository.UpdateTemplateAsync(name, template);
             if (!result.Success)
             {
-                return ApiResponse<SgiMessageTemplate>.ErrorResponse(result.Message, result.Status);
+                return ApiResponse<AllMessageTemplate>.ErrorResponse(result.Message, result.Status);
             }
 
-            return ApiResponse<SgiMessageTemplate>.SuccessResponse(template, "Template updated successfully");
+            return ApiResponse<AllMessageTemplate>.SuccessResponse(template, "Template updated successfully");
         }
 
         public async Task<SGIActionModel> GetActionByCallbackValueAsync(string callbackUrl)
@@ -150,19 +150,19 @@ namespace microservice.mess.Services
             return await _signetRepository.GetUploadFileHashByIdAsync(id);
         }
 
-        public async Task<ApiResponse<SgiMessageTemplate>> SaveTemplateAsync(SgiMessageTemplate template)
+        public async Task<ApiResponse<AllMessageTemplate>> SaveTemplateAsync(AllMessageTemplate template)
         {
             try
             {
                 if (template == null)
-                    return ApiResponse<SgiMessageTemplate>.ErrorResponse("Template không hợp lệ");
+                    return ApiResponse<AllMessageTemplate>.ErrorResponse("Template không hợp lệ");
 
                 await _signetRepository.SaveTemplateAsync(template);
-                return ApiResponse<SgiMessageTemplate>.SuccessResponse(template, "Lưu template thành công");
+                return ApiResponse<AllMessageTemplate>.SuccessResponse(template, "Lưu template thành công");
             }
             catch (Exception ex)
             {
-                return ApiResponse<SgiMessageTemplate>.ErrorResponse($"Lỗi: {ex.Message}", 500);
+                return ApiResponse<AllMessageTemplate>.ErrorResponse($"Lỗi: {ex.Message}", 500);
             }
         }
 
@@ -172,7 +172,7 @@ namespace microservice.mess.Services
             if (!templateResult.Success || templateResult.Data == null)
                 return ApiResponse<object>.ErrorResponse("Template not found.");
 
-            var rawBlock = templateResult.Data.BlockJson;
+            var rawBlock = templateResult.Data.Block;
             foreach (var kv in request.Data)
             {
                 rawBlock = rawBlock.Replace($"{{{{{kv.Key}}}}}", kv.Value); // "{{key}}" → value
@@ -183,7 +183,6 @@ namespace microservice.mess.Services
             var payload = new
             {
                 receivers = templateResult.Data.Receivers,
-                skip_receiver_error = templateResult.Data.Skip_Receiver_Error,
                 block = blockObject,
                 request = new
                 {
@@ -195,7 +194,7 @@ namespace microservice.mess.Services
             using var client = _httpClientFactory.CreateClient();
             var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
 
-            var response = await client.PostAsync("http://127.0.0.1:8036/api/bot-gateway/v1/chat/post-message", content);
+            var response = await client.PostAsync("http://localhost:8036/api/bot-gateway/v1/chat/post-message", content);
             var responseContent = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -206,30 +205,30 @@ namespace microservice.mess.Services
             return ApiResponse<object>.SuccessResponse(new { payload }, "Message sent successfully");
         }
 
-        public async Task<ApiResponse<SgiMessageTemplate>> GetTemplateByNameAsync(string name)
+        public async Task<ApiResponse<AllMessageTemplate>> GetTemplateByNameAsync(string name)
         {
             try
             {
                 var template = await _signetRepository.GetTemplateByNameAsync(name);
                 if (template == null)
-                    return ApiResponse<SgiMessageTemplate>.ErrorResponse("Template không tồn tại");
+                    return ApiResponse<AllMessageTemplate>.ErrorResponse("Template không tồn tại");
 
-                return ApiResponse<SgiMessageTemplate>.SuccessResponse(template, "Tìm thấy template");
+                return ApiResponse<AllMessageTemplate>.SuccessResponse(template, "Tìm thấy template");
             }
             catch (Exception ex)
             {
-                return ApiResponse<SgiMessageTemplate>.ErrorResponse($"Lỗi: {ex.Message}", 500);
+                return ApiResponse<AllMessageTemplate>.ErrorResponse($"Lỗi: {ex.Message}", 500);
             }
         }
 
-        public async Task<ApiResponse<List<SignetUserComponent>>> UploadExcelFileAsync(IFormFile file)
+        public async Task<ApiResponse<List<UserAccountModel>>> UploadExcelFileAsync(IFormFile file)
         {
             try
             {
                 if (file == null || file.Length == 0)
-                    return ApiResponse<List<SignetUserComponent>>.ErrorResponse("File không hợp lệ");
+                    return ApiResponse<List<UserAccountModel>>.ErrorResponse("File không hợp lệ");
 
-                var processedUsers = new List<SignetUserComponent>();
+                var processedUsers = new List<UserAccountModel>();
                 using (var stream = file.OpenReadStream())
                 {
                     using (var workbook = new ClosedXML.Excel.XLWorkbook(stream))
@@ -262,7 +261,7 @@ namespace microservice.mess.Services
                             else
                             {
                                 // If user does not exist, create new
-                                var newUser = new SignetUserComponent
+                                var newUser = new UserAccountModel
                                 {
                                     UserName = userName,
                                     FullName = fullName,
@@ -277,72 +276,72 @@ namespace microservice.mess.Services
                     }
                 }
 
-                return ApiResponse<List<SignetUserComponent>>.SuccessResponse(processedUsers, "Upload và xử lý file Excel thành công");
+                return ApiResponse<List<UserAccountModel>>.SuccessResponse(processedUsers, "Upload và xử lý file Excel thành công");
             }
             catch (Exception ex)
             {
-                return ApiResponse<List<SignetUserComponent>>.ErrorResponse($"Lỗi: {ex.Message}", 500);
+                return ApiResponse<List<UserAccountModel>>.ErrorResponse($"Lỗi: {ex.Message}", 500);
             }
         }
 
-        // SignetUserComponent CRUD Operations
-        public async Task<ApiResponse<SignetUserComponent>> CreateSignetUserAsync(SignetUserComponent user)
+        // UserAccountModel CRUD Operations
+        public async Task<ApiResponse<UserAccountModel>> CreateSignetUserAsync(UserAccountModel user)
         {
             try
             {
                 if (user == null)
-                    return ApiResponse<SignetUserComponent>.ErrorResponse("User không hợp lệ");
+                    return ApiResponse<UserAccountModel>.ErrorResponse("User không hợp lệ");
 
                 var existingUser = await _signetRepository.GetSignetUserByUserNameAsync(user.UserName);
                 if (existingUser != null)
-                    return ApiResponse<SignetUserComponent>.ErrorResponse("UserName đã tồn tại");
+                    return ApiResponse<UserAccountModel>.ErrorResponse("UserName đã tồn tại");
 
                 await _signetRepository.CreateSignetUserAsync(user);
-                return ApiResponse<SignetUserComponent>.SuccessResponse(user, "Tạo user thành công");
+                return ApiResponse<UserAccountModel>.SuccessResponse(user, "Tạo user thành công");
             }
             catch (Exception ex)
             {
-                return ApiResponse<SignetUserComponent>.ErrorResponse($"Lỗi: {ex.Message}", 500);
+                return ApiResponse<UserAccountModel>.ErrorResponse($"Lỗi: {ex.Message}", 500);
             }
         }
 
-        public async Task<List<SignetUserComponent>> GetAllSignetUsersAsync()
+        public async Task<List<UserAccountModel>> GetAllSignetUsersAsync()
         {
             return await _signetRepository.GetAllSignetUsersAsync();
         }
 
-        public async Task<SignetUserComponent?> GetSignetUserByUserNameAsync(string userName)
+        public async Task<UserAccountModel?> GetSignetUserByUserNameAsync(string userName)
         {
             return await _signetRepository.GetSignetUserByUserNameAsync(userName);
         }
 
-        public async Task<List<SignetUserComponent>> GetSignetUsersByGroupAsync(string group)
+        public async Task<List<UserAccountModel>> GetSignetUsersByGroupAsync(string group)
         {
             return await _signetRepository.GetSignetUsersByGroupAsync(group);
         }
 
-        public async Task<ApiResponse<SignetUserComponent>> UpdateSignetUserAsync(string userName, SignetUserComponent user)
+        public async Task<ApiResponse<UserAccountModel>> UpdateSignetUserAsync(string userName, UserAccountModel user)
         {
             try
             {
                 var existingUser = await _signetRepository.GetSignetUserByUserNameAsync(userName);
                 if (existingUser == null)
-                    return ApiResponse<SignetUserComponent>.ErrorResponse("User không tồn tại");
+                    return ApiResponse<UserAccountModel>.ErrorResponse("User không tồn tại");
 
                 // Check if the new username is already taken by another user
                 if (user.UserName != userName)
                 {
                     var userWithNewName = await _signetRepository.GetSignetUserByUserNameAsync(user.UserName);
                     if (userWithNewName != null)
-                        return ApiResponse<SignetUserComponent>.ErrorResponse("UserName mới đã tồn tại");
+                        return ApiResponse<UserAccountModel>.ErrorResponse("UserName mới đã tồn tại");
                 }
 
                 await _signetRepository.UpdateSignetUserAsync(userName, user);
-                return ApiResponse<SignetUserComponent>.SuccessResponse(user, "Cập nhật user thành công");
+                return ApiResponse<UserAccountModel>.SuccessResponse(user, "Cập nhật user thành công");
             }
             catch (Exception ex)
             {
-                return ApiResponse<SignetUserComponent>.ErrorResponse($"Lỗi: {ex.Message}", 500);
+                return ApiResponse<UserAccountModel>.ErrorResponse($"Lỗi: {ex.Message}", 500);
             }
         }
 

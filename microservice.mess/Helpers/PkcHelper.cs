@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Globalization;
 using System.Text;
 
 namespace microservice.mess.Helpers
@@ -57,6 +58,22 @@ namespace microservice.mess.Helpers
                 .Select(k => $"{k}={dict[k]}"));
 
             return result;
+        }
+
+
+        public static string NormalizeCategoryPlaceholder(string category)
+        {
+            string noDiacritics = RemoveVietnameseDiacritics(category);
+            return noDiacritics
+                .Trim()
+                .ToUpperInvariant()
+                .Replace(" ", "_");
+        }
+        public static string RemoveVietnameseDiacritics(string input)
+        {
+            string normalized = input.Normalize(NormalizationForm.FormD);
+            var chars = normalized.Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark);
+            return new string(chars.ToArray()).Normalize(NormalizationForm.FormC);
         }
 
     }

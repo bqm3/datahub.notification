@@ -21,13 +21,13 @@ namespace microservice.mess.Services
             _mailRepository = mailRepository;
         }
 
-        public async Task SendEmailAsync(SendMailByTagRequest request)
+        public async Task SendEmailAsync(SendMailByNameRequest request)
         {
             try
             {
-                var template = await _mailRepository.GetByTagAsync(request.Tag);
+                var template = await _mailRepository.GetByNameAsync(request.Name);
                 if (template == null)
-                    throw new Exception($"Template with tag '{request.Tag}' not found.");
+                    throw new Exception($"Template with Name '{request.Name}' not found.");
 
                 string renderedBody = RenderTemplate(template.BodyHtml, request.Data);
                 string subject = request.Subject ?? template.Subject;
@@ -48,28 +48,42 @@ namespace microservice.mess.Services
 
                 foreach (var toEmail in request.To)
                 {
-                    var message = new MailMessage
+                    if (!IsValidEmail(toEmail))
                     {
-                        From = new MailAddress(sender.FromEmail, sender.DisplayName),
-                        Subject = subject,
-                        Body = renderedBody,
-                        IsBodyHtml = true
-                    };
+                        _logger.LogWarning("Email không hợp lệ: {toEmail}", toEmail);
+                        continue;
+                    }
 
-                    message.To.Add(toEmail);
-                    await client.SendMailAsync(message);
+                    try
+                    {
+                        var message = new MailMessage
+                        {
+                            From = new MailAddress(sender.FromEmail, sender.DisplayName),
+                            Subject = subject,
+                            Body = renderedBody,
+                            IsBodyHtml = true
+                        };
 
-                    _logger.LogInformation("Sent email to {to} with subject: {subject}", toEmail, subject);
+                        message.To.Add(toEmail); // không cần lại tạo MailAddress
+                        await client.SendMailAsync(message);
+
+                        _logger.LogInformation("Sent email to {to} with subject: {subject}", toEmail, subject);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Lỗi khi gửi email đến {toEmail}", toEmail);
+                    }
                 }
+
 
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, " Failed to send email to ");
+                _logger.LogError(ex, " Failed to send email to {ex}", ex);
             }
         }
 
-        public async Task CreateTemplateAsync(MailTemplateModel template)
+        public async Task CreateTemplateAsync(AllMessageTemplate template)
         {
             try
             {
@@ -94,6 +108,12 @@ namespace microservice.mess.Services
                 template = template.Replace($"{{{{{kv.Key}}}}}", kv.Value);
             }
             return template;
+        }
+
+
+        private static bool IsValidEmail(string email)
+        {
+            return MailAddress.TryCreate(email, out _);
         }
     }
 }

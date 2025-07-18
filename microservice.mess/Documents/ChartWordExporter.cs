@@ -1,48 +1,359 @@
 using Aspose.Words;
+using Aspose.Words.Replacing;
 using Aspose.Words.Drawing;
+using Aspose.Words.Tables;
+using System.Drawing;
 using Aspose.Words.Fields;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using microservice.mess.Documents;
+using microservice.mess.Models;
+using microservice.mess.Helpers;
+using microservice.mess.Models.Message;
 
 public class ChartWordExporter
 {
-    public void InsertChartsIntoTemplate(string templatePath, string outputPath, List<string> chartImagePaths)
+    private readonly ILogger _logger;
+
+    public void InsertChartsAndMergeFields(
+        string templatePath,
+        string outputPath,
+        Dictionary<string, string> fieldToImageMap,
+        Dictionary<string, string> mergeFields,
+        List<DataJsonCategory>? dataJson = null,
+        TemplateConfig? templateConfig = null
+    )
     {
         var doc = new Document(templatePath);
         var builder = new DocumentBuilder(doc);
 
-        for (int i = 0; i < chartImagePaths.Count; i++)
+        var fieldStyles = new Dictionary<string, MergeFieldStyle>(StringComparer.OrdinalIgnoreCase)
         {
-            string fieldName = $"ANH_{i + 1}";
+            ["TITLE"] = new MergeFieldStyle
+            {
+                FontSize = 16,
+                FontColor = Color.White,
+                Bold = true,
+                FontName = "Arial"
+            },
+            ["LOCATION"] = new MergeFieldStyle
+            {
+                FontSize = 24,
+                FontColor = Color.Yellow,
+                FontName = "Arial"
+            },
+            ["BAN_TIN_NGAY"] = new MergeFieldStyle
+            {
+                FontSize = 12,
+                FontColor = Color.Yellow,
+                FontName = "Arial"
+            }
+        };
+
+        var defaultStyle = new MergeFieldStyle
+        {
+            FontName = "Tahoma",
+            FontSize = 12,
+            FontColor = Color.FromArgb(33, 33, 33),
+            Bold = false
+        };
+
+        // MERGE FIELDS
+        if (mergeFields != null)
+        {
+            foreach (var field in mergeFields)
+            {
+                // lấy style từ dictionary, nếu không có thì dùng style mặc định
+                MergeFieldStyle style = fieldStyles.TryGetValue(field.Key, out var customStyle)
+                    ? customStyle
+                    : defaultStyle;
+
+                var options = new FindReplaceOptions
+                {
+                    Direction = FindReplaceDirection.Forward,
+                    ReplacingCallback = new StyledMergeFieldReplacer(
+                        field.Value,
+                        fontName: style.FontName,
+                        fontSize: style.FontSize,
+                        fontColor: style.FontColor,
+                        isBold: style.Bold
+                    )
+                };
+
+                doc.Range.Replace($"«{field.Key}»", "", options);
+            }
+        }
+
+        // IMAGE
+        var maxWidth = 1584.0;
+        var maxHeight = 1584.0;
+
+        // Tạo dictionary cho kích thước chart từ config
+        var chartSizes = new Dictionary<string, (double Width, double Height)>(StringComparer.OrdinalIgnoreCase);
+
+        if (templateConfig?.Charts != null)
+        {
+            foreach (var chart in templateConfig.Charts)
+            {
+                if (!string.IsNullOrWhiteSpace(chart.MergeField) &&
+                    chart.Width.HasValue && chart.Height.HasValue)
+                {
+                    chartSizes[chart.MergeField] = (
+                        Width: (double)chart.Width.Value,
+                        Height: (double)chart.Height.Value
+                    );
+                    Console.WriteLine($"Loaded config size for {chart.MergeField}: {chart.Width}x{chart.Height}");
+                }
+            }
+        }
+
+        foreach (var kv in fieldToImageMap)
+        {
+            string fieldName = kv.Key;
+            string imagePath = kv.Value;
+
+            // Kiểm tra file ảnh có tồn tại không
+            if (!File.Exists(imagePath))
+            {
+                Console.WriteLine($"Warning: Image file not found: {imagePath}");
+                continue;
+            }
+
+            // Tìm và thay thế merge field với ảnh
+            foreach (Table table in doc.GetChildNodes(NodeType.Table, true))
+            {
+                foreach (Row row in table.Rows)
+                {
+                    foreach (Cell cell in row.Cells)
+                    {
+                        // Tìm merge field trong cell
+                        var fieldsToRemove = new List<Field>();
+
+                        foreach (Field field in cell.Range.Fields)
+                        {
+                            if (field.Type != FieldType.FieldMergeField) continue;
+
+                            string fieldCode = field.GetFieldCode();
+                            if (!fieldCode.Contains(fieldName)) continue;
+
+                            // Di chuyển builder đến vị trí field
+                            builder.MoveTo(field.Start);
+
+                            try
+                            {
+                                using var imgStream = new FileStream(imagePath, FileMode.Open, FileAccess.Read);
+                                var shape = builder.InsertImage(imgStream);
+
+                                // Thiết lập kích thước ảnh
+                                SetImageSize(shape, fieldName, chartSizes, cell, row, maxWidth, maxHeight, imagePath);
+
+                                // Căn giữa ảnh trong cell
+                                shape.RelativeHorizontalPosition = RelativeHorizontalPosition.Column;
+                                shape.RelativeVerticalPosition = RelativeVerticalPosition.Paragraph;
+                                shape.HorizontalAlignment = HorizontalAlignment.Center;
+                                shape.VerticalAlignment = VerticalAlignment.Center;
+
+                                fieldsToRemove.Add(field);
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Error inserting image {imagePath}: {ex.Message}");
+                            }
+                        }
+
+                        // Xóa các field đã được thay thế
+                        foreach (var field in fieldsToRemove)
+                        {
+                            field.Remove();
+                        }
+                    }
+                }
+            }
+        }
+
+        // DATA JSON
+        if (dataJson != null && dataJson.Any())
+        {
+            InsertArticleBlocksFromDataJson(doc, builder, dataJson);
+        }
+
+        try
+        {
+            // Đảm bảo thư mục đích tồn tại
+            string? outputDir = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
+            {
+                Directory.CreateDirectory(outputDir);
+            }
+
+            // Save file Word
+            doc.Save(outputPath, SaveFormat.Docx);
+            Console.WriteLine($"=> Word file generated: {outputPath}");
+
+            // Kiểm tra file được tạo thành công
+            if (File.Exists(outputPath))
+            {
+                FileInfo fileInfo = new FileInfo(outputPath);
+                Console.WriteLine($"Word file size: {fileInfo.Length} bytes");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving Word file: {ex.Message}");
+            throw;
+        }
+    }
+
+
+    public void ExportToPdf(string docxPath, string pdfPath)
+    {
+        if (!File.Exists(docxPath))
+            throw new FileNotFoundException("Word file not found: " + docxPath);
+
+        try
+        {
+            var doc = new Document(docxPath);
+            doc.Save(pdfPath, SaveFormat.Pdf);
+            Console.WriteLine($"=> PDF file generated: {pdfPath}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("ExportToPdf failed: " + ex.Message);
+            throw;
+        }
+    }
+
+
+    public static string GetCategoryAbbreviation(string category)
+    {
+        return string.Concat(category
+            .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(word => char.ToUpperInvariant(word[0])));
+    }
+
+    private void SetImageSize(
+        Shape shape,
+        string fieldName,
+        Dictionary<string, (double Width, double Height)> chartSizes,
+        Cell cell,
+        Row row,
+        double maxWidth,
+        double maxHeight,
+        string imagePath
+    )
+    {
+        Console.WriteLine($"Setting size for field: {fieldName}");
+        Console.WriteLine($"Available chart sizes: {string.Join(", ", chartSizes.Keys)}");
+
+        if (chartSizes.TryGetValue(fieldName, out var configSize))
+        {
+            try
+            {
+                using var img = System.Drawing.Image.FromFile(imagePath); //  dùng đúng file ảnh
+                double imgWidthPx = img.Width;
+                double imgHeightPx = img.Height;
+
+                // Convert px -> pt (1 pt = 1/72 inch), assume 96 DPI
+                double imgWidthPt = imgWidthPx * 72.0 / 96.0;
+                double imgHeightPt = imgHeightPx * 72.0 / 96.0;
+
+                // Tính tỉ lệ để resize ảnh đúng theo config pt
+                double scaleX = configSize.Width / imgWidthPt;
+                double scaleY = configSize.Height / imgHeightPt;
+                double finalScale = Math.Min(scaleX, scaleY);
+
+                shape.Width = imgWidthPt * finalScale;
+                shape.Height = imgHeightPt * finalScale;
+
+                Console.WriteLine($"Scaled image for {fieldName}: {shape.Width}x{shape.Height} from file {imagePath}");
+                return;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to read image for {fieldName}: {ex.Message}");
+            }
+        }
+
+        // fallback auto-size
+        double cellWidth = CalculateCellWidth(cell);
+        double cellHeight = row.RowFormat.Height > 0 ? row.RowFormat.Height : shape.Height;
+
+        double targetWidth = Math.Min(cellWidth * 0.9, maxWidth);
+        double targetHeight = Math.Min(cellHeight * 0.9, maxHeight);
+
+        double widthRatio = targetWidth / shape.Width;
+        double heightRatio = targetHeight / shape.Height;
+        double autoScale = Math.Min(widthRatio, heightRatio);
+
+        shape.Width *= autoScale;
+        shape.Height *= autoScale;
+
+        Console.WriteLine($"Auto-sized {fieldName}: {shape.Width}x{shape.Height} (scale: {autoScale:F2})");
+    }
+
+
+    // Method helper để tính chiều rộng cell (bao gồm merged cells)
+    private double CalculateCellWidth(Cell cell)
+    {
+        double totalWidth = cell.CellFormat.Width;
+
+        // Xử lý merged cells
+        if (cell.CellFormat.HorizontalMerge != CellMerge.None)
+        {
+            totalWidth = 0;
+            var parentRow = cell.ParentRow;
+            int cellIndex = parentRow.Cells.IndexOf(cell);
+
+            for (int i = cellIndex; i < parentRow.Cells.Count; i++)
+            {
+                var currentCell = parentRow.Cells[i];
+                totalWidth += currentCell.CellFormat.Width;
+
+                // Dừng khi gặp cell không merge
+                if (currentCell.CellFormat.HorizontalMerge == CellMerge.None)
+                    break;
+            }
+        }
+
+        return totalWidth;
+    }
+    public void InsertArticleBlocksFromDataJson(Document doc, DocumentBuilder builder, List<DataJsonCategory> dataJson)
+    {
+        foreach (var block in dataJson)
+        {
+            string category = block.Category;
+            string placeholderName;
+
+            if (category.StartsWith("SOCIAL_", StringComparison.OrdinalIgnoreCase))
+            {
+                placeholderName = category;
+            }
+            else
+            {
+                string shortKey = PkceHelper.NormalizeCategoryPlaceholder(category);
+                placeholderName = $"CHUYENMUC_{shortKey}";
+            }
 
             foreach (Field field in doc.Range.Fields)
             {
                 if (field.Type == FieldType.FieldMergeField)
                 {
                     var fieldCode = field.GetFieldCode();
-                    if (fieldCode.Contains(fieldName))
+
+                    if (fieldCode.Contains(placeholderName, StringComparison.OrdinalIgnoreCase))
                     {
+
                         builder.MoveToField(field, true);
-
-                        // Chèn ảnh
-                        builder.InsertImage(chartImagePaths[i], 200, 200);
-
+                        HtmlArticleRenderer.RenderArticlesWithLayout(builder, category, block.Data);
                         field.Remove();
-                        break;
                     }
                 }
             }
         }
-
-        doc.Save(outputPath);
-        Console.WriteLine($"=> Word file generated: {outputPath}");
     }
 
-    public void ExportToPdf(string docxPath, string pdfPath)
-    {
-        var doc = new Document(docxPath);
-        doc.Save(pdfPath, SaveFormat.Pdf);
-        Console.WriteLine($"=> PDF file generated: {pdfPath}");
-    }
+
 }

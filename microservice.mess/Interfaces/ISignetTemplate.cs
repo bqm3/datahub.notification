@@ -6,7 +6,7 @@ namespace microservice.mess.Interfaces
     public interface ISignetTemplate
     {
         Task CreateSGIActionAsync(SGIActionModel model);
-        Task<SgiMessageTemplate?> GetTemplateByNameAsync(string name);
+        Task<AllMessageTemplate?> GetTemplateByNameAsync(string name);
         // Task<ApiResponse<object>> SendTemplateMessageAsync(string templateName, Dictionary<string, string> data);
     }
 }

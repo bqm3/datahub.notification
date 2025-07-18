@@ -23,6 +23,10 @@
       "LDZ_HIS_OWNER": {
         "ConnectionString": "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP) (HOST=10.20.0.200)(PORT=1521))) (CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=ORCL))); User Id=LDZ_HIS_OWNER;Password=LDZ_HIS_OWNER;",
         "SchemaName": "LDZ_HIS_OWNER"
+      },
+       "SHARE_OWNER": {
+        "ConnectionString": "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP) (HOST=172.20.91.100)(PORT=1521))) (CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=SHAREDATA))); User Id=SHARE_OWNER;Password=dat@Hub2025;",
+        "SchemaName": "SHARE_OWNER"
       }
     }
   },

@@ -5,6 +5,10 @@ using microservice.mess.Kafka;
 using microservice.mess.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using System.Text.Json;
+using Newtonsoft.Json;
+using MongoDB.Bson;
+using MongoDB.Driver;
+using StackExchange.Redis;
 
 namespace microservice.mess.Services
 {
@@ -69,19 +73,19 @@ namespace microservice.mess.Services
                         filteredItem.Signet = item.Signet;
                         break;
 
-                    case "signalr":
-                        if (item.SignalR != null)
-                        {
-                            var signalRData = new Dictionary<string, string>
-                            {
-                                ["Action"] = action,
-                                ["Message"] = item.SignalR.Message ?? "",
-                                ["CreatedAt"] = createdAt
-                            };
-                            await _hubContext.Clients.All.SendAsync("DispatchMessage", signalRData);
-                            _logger.LogInformation("Dispatched to SignalR: {msg}", item.SignalR.Message);
-                        }
-                        continue;
+                    // case "signalr":
+                    //     if (item.SignalR != null)
+                    //     {
+                    //         var signalRData = new Dictionary<string, string>
+                    //         {
+                    //             ["Action"] = action,
+                    //             ["Message"] = item.SignalR.Message ?? "",
+                    //             ["CreatedAt"] = createdAt
+                    //         };
+                    //         await _hubContext.Clients.All.SendAsync("DispatchMessage", signalRData);
+                    //         _logger.LogInformation("Dispatched to SignalR: {msg}", item.SignalR.Message);
+                    //     }
+                    //     continue;
 
                     case "slack":
                         if (!string.IsNullOrEmpty(item.Slack?.Message))
@@ -112,7 +116,7 @@ namespace microservice.mess.Services
                     Body = new List<MessageBodyItem> { filteredItem }
                 };
 
-                var serializedRequest = JsonSerializer.Serialize(message);
+                var serializedRequest = Newtonsoft.Json.JsonConvert.SerializeObject(message);
 
                 try
                 {

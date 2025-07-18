@@ -1,0 +1,33 @@
+{
+ "Charts": [
+    {
+      "MergeField": "ANH_1",
+      "Width": 550,
+      "Height": 350
+    },
+    {
+      "MergeField": "ANH_2",
+      "Width": 250,
+      "Height": 250
+    },
+    {
+      "MergeField": "ANH_3",
+      "Width": 250,
+      "Height": 250
+    }
+  ],
+  "TemplateExcel": "ChartDB_No2.xlsx",
+  "MergeFields": {
+    "name": "",
+    "voucher_code": "",
+    "expiry_date": "",
+    "promotion_url": ""
+  },
+  "file_field": "file_pdf",
+  "Data": {
+    "ANH_1": "",
+    "ANH_2": "",
+    "ANH_3": ""
+  },
+  "DataJson": {}
+}

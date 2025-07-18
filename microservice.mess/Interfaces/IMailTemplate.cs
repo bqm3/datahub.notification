@@ -5,8 +5,8 @@ namespace microservice.mess.Interfaces
 {
     public interface IMailTemplate
     {
-        Task CreateAsync(MailTemplateModel template);
-        Task<List<MailTemplateModel>> GetAllAsync();
-        Task<MailTemplateModel?> GetByTagAsync(string tag);
+        Task CreateAsync(AllMessageTemplate template);
+        Task<List<AllMessageTemplate>> GetAllAsync();
+        Task<AllMessageTemplate?> GetByNameAsync(string name);
     }
 }

@@ -94,9 +94,9 @@ namespace microservice.mess.Documents
                                                 inner.Container().Column(block =>
                                                 {
                                                     block.Item().Text(text =>
-{
-    text.Span($"{timeFormatted} – {author}").FontSize(10);
-});
+                                                    {
+                                                        text.Span($"{timeFormatted} – {author}").FontSize(10);
+                                                    });
                                                     block.Item().Text(shortContent).FontSize(10);
                                                     block.Item().Hyperlink(linkUrl).Text("Link bài").FontColor(Colors.Blue.Medium).FontSize(9);
                                                 })
@@ -140,30 +140,6 @@ namespace microservice.mess.Documents
             }
         }
 
-        // public void InsertChartsIntoTemplate(string templatePath, string outputPath, List<string> chartImagePaths)
-        // {
-        //     var doc = new WordsDocument(templatePath);
-        //     var builder = new DocumentBuilder(doc);
-
-        //     for (int i = 0; i < chartImagePaths.Count; i++)
-        //     {
-        //         string placeholder = $"<<Chart{i + 1}>>";
-        //         var nodes = doc.GetChildNodes(NodeType.Run, true).OfType<WordsRun>()
-        //                        .Where(r => r.Text.Contains(placeholder)).ToList();
-
-        //         foreach (var run in nodes)
-        //         {
-        //             builder.MoveTo(run);
-        //             builder.InsertImage(chartImagePaths[i], RelativeHorizontalPosition.Margin, 0,
-        //                                                  RelativeVerticalPosition.Paragraph, 0,
-        //                                                  400, 250, WrapType.Inline);
-        //             run.Text = ""; // OK vì là WordsRun
-        //         }
-        //     }
-
-        //     doc.Save(outputPath);
-        //     Console.WriteLine($"=> Word file generated: {outputPath}");
-        // }
 
     }
 }

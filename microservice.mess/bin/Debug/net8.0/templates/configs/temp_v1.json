@@ -1,0 +1,29 @@
+{
+  "Charts": [
+    {
+      "MergeField": "ANH_TONGQUAN",
+      "Width": 500,
+      "Height": 300
+    },
+    {
+      "MergeField": "ANH_REVIEW",
+      "Width": 500,
+      "Height": 300
+    }
+  ],
+  "TemplateExcel": "ChartDB_No1.xlsx",
+  "MergeFields": {
+    "TIEU_DE": "Báo cáo dữ liệu hàng ngày",
+    "NGAY": "",
+    "NGUOI_LAP": "GOV Truyền thông",
+    "BAN_TIN_NGAY": "",
+    "TITLE": "THÔNG TIN ĐÁNG CHÚ Ý TRÊN GOV TRONG NGÀY",
+    "LOCATION": "TỈNH AN GIANG"
+  },
+  "key": "file_view",
+  "Data": {
+    "ANH_TONGQUAN": "",
+    "ANH_REVIEW": ""
+  },
+  "DataJson": {}
+}

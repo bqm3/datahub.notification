@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using microservice.mess.Services;
 using microservice.mess.Models.Message;
+using microservice.mess.Models;
 using microservice.mess.Repositories;
 using microservice.mess.Configurations;
 
@@ -127,7 +128,7 @@ namespace microservice.mess.Kafka
         {
             try
             {
-                if (message.Headers.Action?.ToLower() == "send-mail-tag")
+                if (message.Headers.Action?.ToLower() == "send-mail-name")
                 {
                     foreach (var item in message.Body)
                     {
@@ -167,6 +168,14 @@ namespace microservice.mess.Kafka
                             Data = signet.Data
                         };
                         await _signetService.SendTemplateMessageAsync(request);
+                        break;
+                    case "send-signet-message-schedule":
+                        var requestSchedule = new SendTemplateMessageRequest
+                        {
+                            TemplateName = signet.TemplateName,
+                            Data = signet.Data
+                        };
+                        await _signetService.SendTemplateMessageAsync(requestSchedule);
                         break;
 
                     default:

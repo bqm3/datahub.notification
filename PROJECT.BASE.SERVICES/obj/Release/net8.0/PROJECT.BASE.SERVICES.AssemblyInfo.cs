@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PROJECT.BASE.SERVICES")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1f5073a0ca46ed3f3ee09d199d0f4ba13b62679e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c5574f9d9c29884c13d9cdc57915fe1ce6e3434c")]
 [assembly: System.Reflection.AssemblyProductAttribute("PROJECT.BASE.SERVICES")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PROJECT.BASE.SERVICES")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

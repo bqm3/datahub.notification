@@ -24,14 +24,16 @@ namespace microservice.mess.Controllers
         private readonly SignetService _signetService;
         private readonly SgiPdfChart _sgiPdfChart;
         private readonly SignetRepository _signetRepository;
+        private readonly ScheduledAllRepository _scheduledAllRepo;
 
-        public SignetController(ILogger<SignetController> logger, IHttpClientFactory httpClientFactory, SgiPdfChart sgiPdfChart, SignetService signetService, SignetRepository signetRepository)
+        public SignetController(ILogger<SignetController> logger, ScheduledAllRepository scheduledAllRepository, IHttpClientFactory httpClientFactory, SgiPdfChart sgiPdfChart, SignetService signetService, SignetRepository signetRepository)
         {
             _logger = logger;
             _httpClientFactory = httpClientFactory;
             _signetService = signetService;
             _signetRepository = signetRepository;
             _sgiPdfChart = sgiPdfChart;
+            _scheduledAllRepo = scheduledAllRepository;
         }
 
         [HttpPost("sgi-action")]
@@ -62,40 +64,27 @@ namespace microservice.mess.Controllers
 
         #region 
 
-        [HttpPost("generate-chart")]
-        public IActionResult GenerateCharts([FromBody] ChartJsonRequest request)
+        [HttpPost("generate")]
+        public async Task<IActionResult> GenerateCharts([FromBody] ChartJsonRequest request)
         {
             try
             {
-                _sgiPdfChart.GenerateFromJson(request);
-                return Ok(new
-                {
-                    Message = "Charts created",
-                    Count = request.Charts.Count,
-                    Excel = "Exports/debug.xlsx"
-                });
+                var outputDocx = Path.Combine("Exports", string.IsNullOrWhiteSpace(request.OutputFileName)
+                    ? $"report_{DateTime.Now:yyyyMMddHHmmss}.docx"
+                    : request.OutputFileName);
+
+                var outputPdf = Path.ChangeExtension(outputDocx, ".pdf");
+
+                var outputFileName = await _sgiPdfChart.GenerateFromJson(request, request.TemplateName, outputDocx, outputPdf);
+
+                return Ok(ApiResponse<string>.SuccessResponse(request.OutputFileName, "Upload file thành công"));
             }
             catch (Exception ex)
             {
-                return BadRequest(new { Error = ex.Message });
+                return BadRequest(ApiResponse<string>.ErrorResponse(ex.Message));
             }
         }
 
-
-        [HttpGet("generate")]
-        public async Task<IActionResult> GeneratePdf()
-        {
-            try
-            {
-                var filePath = await _signetRepository.GeneratePdfWithAsposeAsync();
-                return Ok(ApiResponse<string>.SuccessResponse(filePath, "Upload file thành công"));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi khi tạo PDF");
-                return StatusCode(500, ApiResponse<string>.ErrorResponse(ex.Message, 500));
-            }
-        }
         #endregion
 
         #region SGI Upload File
@@ -109,7 +98,7 @@ namespace microservice.mess.Controllers
                 if (!result.Success)
                     return BadRequest(ApiResponse<string>.ErrorResponse("Invalid callback request."));
 
-                return Ok(ApiResponse<string>.SuccessResponse("Upload file thành công"));
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -210,15 +199,15 @@ namespace microservice.mess.Controllers
 
         #region SGI Message Template Endpoints
         [HttpPost("template")]
-        public async Task<IActionResult> CreateTemplate([FromBody] SgiMessageTemplateDto request)
+        public async Task<IActionResult> CreateTemplate([FromBody] AllMessageTemplate request)
         {
             string jsonBlock = JsonConvert.SerializeObject(request.Block, Formatting.None);
-            var template = new SgiMessageTemplate
+            var template = new AllMessageTemplate
             {
                 Name = request.Name,
                 Receivers = request.Receivers,
-                Skip_Receiver_Error = request.Skip_Receiver_Error,
-                BlockJson = jsonBlock
+                SkipReceiverError = request.SkipReceiverError,
+                Block = jsonBlock
             };
 
             var result = await _signetService.SaveTemplateAsync(template);
@@ -238,22 +227,32 @@ namespace microservice.mess.Controllers
 
 
         [HttpPut("template/{name}")]
-        public async Task<IActionResult> UpdateTemplate(string name, [FromBody] SgiMessageTemplateDto request)
+        public async Task<IActionResult> UpdateTemplate(string name, [FromBody] AllMessageTemplate request)
         {
-            string jsonBlock = JsonConvert.SerializeObject(request.Block, Formatting.None);
-            var template = new SgiMessageTemplate
+            string jsonBlock;
+
+            if (request.Block is string s)
+            {
+                jsonBlock = s;
+            }
+            else
+            {
+                jsonBlock = JsonConvert.SerializeObject(request.Block, Formatting.None);
+            }
+            var template = new AllMessageTemplate
             {
                 Name = request.Name,
                 Receivers = request.Receivers,
-                Skip_Receiver_Error = request.Skip_Receiver_Error,
-                BlockJson = jsonBlock
+                SkipReceiverError = request.SkipReceiverError,
+                Placeholders = request.Placeholders,
+                Block = jsonBlock
             };
 
             var result = await _signetService.UpdateTemplateAsync(name, template);
             if (!result.Success)
                 return BadRequest(ApiResponse<string>.ErrorResponse(result.Message));
 
-            return Ok(ApiResponse<SgiMessageTemplate>.SuccessResponse(result.Data, "Cập nhật template thành công"));
+            return Ok(ApiResponse<AllMessageTemplate>.SuccessResponse(result.Data, "Cập nhật template thành công"));
         }
 
         #endregion
@@ -277,9 +276,9 @@ namespace microservice.mess.Controllers
             }
         }
 
-        // SignetUserComponent CRUD Endpoints
+        // UserAccountModel CRUD Endpoints
         [HttpPost("user")]
-        public async Task<IActionResult> CreateSignetUser([FromBody] SignetUserComponent user)
+        public async Task<IActionResult> CreateSignetUser([FromBody] UserAccountModel user)
         {
             if (user == null)
                 return BadRequest(ApiResponse<string>.ErrorResponse("Invalid user data."));
@@ -295,7 +294,7 @@ namespace microservice.mess.Controllers
         public async Task<IActionResult> GetAllSignetUsers()
         {
             var result = await _signetService.GetAllSignetUsersAsync();
-            return Ok(ApiResponse<List<SignetUserComponent>>.SuccessResponse(result, "Lấy danh sách user thành công"));
+            return Ok(ApiResponse<List<UserAccountModel>>.SuccessResponse(result, "Lấy danh sách user thành công"));
         }
 
         [HttpGet("user/{userName}")]
@@ -305,18 +304,18 @@ namespace microservice.mess.Controllers
             if (result == null)
                 return NotFound(ApiResponse<string>.ErrorResponse("User not found."));
 
-            return Ok(ApiResponse<SignetUserComponent>.SuccessResponse(result, "Tìm thấy user."));
+            return Ok(ApiResponse<UserAccountModel>.SuccessResponse(result, "Tìm thấy user."));
         }
 
         [HttpGet("users/group/{group}")]
         public async Task<IActionResult> GetSignetUsersByGroup(string group)
         {
             var result = await _signetService.GetSignetUsersByGroupAsync(group);
-            return Ok(ApiResponse<List<SignetUserComponent>>.SuccessResponse(result, $"Lấy danh sách user theo group {group} thành công"));
+            return Ok(ApiResponse<List<UserAccountModel>>.SuccessResponse(result, $"Lấy danh sách user theo group {group} thành công"));
         }
 
         [HttpPut("user/{userName}")]
-        public async Task<IActionResult> UpdateSignetUser(string userName, [FromBody] SignetUserComponent user)
+        public async Task<IActionResult> UpdateSignetUser(string userName, [FromBody] UserAccountModel user)
         {
             if (user == null)
                 return BadRequest(ApiResponse<string>.ErrorResponse("Invalid user data."));
@@ -338,6 +337,11 @@ namespace microservice.mess.Controllers
             return Ok(result);
         }
 
-
+        [HttpPost("schedule")]
+        public async Task<IActionResult> ScheduleSignet([FromBody] ScheduledAllModel model)
+        {
+            await _scheduledAllRepo.AddOrUpdateAsync(model);
+            return Ok(ApiResponse<ScheduledAllModel>.SuccessResponse(model, "Tạo lịch thành công"));
+        }
     }
 }

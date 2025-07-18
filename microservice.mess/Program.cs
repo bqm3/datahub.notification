@@ -3,15 +3,18 @@ using FirebaseAdmin;
 using Minio;
 using QuestPDF.Infrastructure;
 using Aspose.Cells;
+using Aspose.Words;
 using System;
 using System.IO;
 using System.Reflection;
+using Microsoft.Extensions.Options;
 // using Serilog;
 // using Serilog.Sinks.Elasticsearch;
 // using Serilog.Formatting.Elasticsearch;
 // using Serilog.Enrichers;
 using microservice.mess.Configurations;
 using microservice.mess.Repositories;
+using microservice.mess.Schedules;
 using microservice.mess.Interfaces;
 using microservice.mess.Kafka.Consumer;
 using microservice.mess.Hubs;
@@ -19,13 +22,32 @@ using Microsoft.OpenApi.Models;
 using microservice.mess.Filters;
 using microservice.mess.Models;
 using microservice.mess.Services;
+using microservice.mess.Services.Storage;
 using microservice.mess.Kafka;
 using microservice.mess.Documents;
 
 var builder = WebApplication.CreateBuilder(args);
-Aspose.Cells.License license = new License();
-license.SetLicense("../microservice.mess/bin/#License#/License.lic");
-                
+
+var licensePath = Path.Combine(AppContext.BaseDirectory, "#License#", "License.lic");
+
+var cellsLicense = new Aspose.Cells.License();
+cellsLicense.SetLicense(licensePath);
+
+var wordsLicense = new Aspose.Words.License();
+wordsLicense.SetLicense(licensePath);
+
+try
+{
+    var doc = new Aspose.Words.Document();
+    var workbook = new Aspose.Cells.Workbook();
+    Console.WriteLine("Aspose.Words and Aspose.Cells license likely OK.");
+}
+catch (Exception ex)
+{
+    Console.WriteLine("Aspose.Words license NOT loaded.");
+}
+
+
 // Load config từ global.setting.json
 builder.Configuration.AddJsonFile("config/global/global.setting.json", optional: false, reloadOnChange: true);
 
@@ -34,6 +56,14 @@ builder.Services.AddSingleton<IMongoClient>(sp =>
 {
     var connStr = builder.Configuration["MongoSettings:ConnectionString"];
     return new MongoClient(connStr);
+});
+builder.Services.AddSingleton<IMongoClientFactory, MongoClientFactory>();
+
+builder.Services.AddScoped<IMongoDatabase>(sp =>
+{
+    var settings = sp.GetRequiredService<IOptions<MongoSettings>>().Value;
+    var client = sp.GetRequiredService<IMongoClient>();
+    return client.GetDatabase(settings.ZaloDatabase); 
 });
 
 builder.Services.AddSingleton<IMinioClient>(sp =>
@@ -54,11 +84,14 @@ builder.Services.AddScoped<SignetRepository>();
 builder.Services.AddScoped<ZaloRepository>();
 builder.Services.AddScoped<LogMessageRepository>();
 builder.Services.AddSingleton<ScheduledEmailRepository>();
+builder.Services.AddSingleton<ScheduledAllRepository>();
+builder.Services.AddSingleton<ScheduleQueryRepository>();
 
 builder.Services.AddScoped<MailRepository>();
 builder.Services.AddScoped<MailService>();
 builder.Services.AddScoped<SignetService>();
 builder.Services.AddScoped<ZaloService>();
+builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<SignalRService>();
 builder.Services.AddScoped<KafkaProducerService>();
 builder.Services.AddScoped<SlackService>();
@@ -69,12 +102,26 @@ builder.Services.AddScoped<SgiPdfChart>();
 
 
 builder.Services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
+builder.Services.AddScoped<IStorageService, MinioStorageService>();
 builder.Services.AddSingleton<ILogMessage, LogMessageRepository>();
 
 //kafka
 builder.Services.AddHostedService<ConsumeScopedServiceHostedService>();
-// scheduler mail
+
+// scheduler 
 builder.Services.AddHostedService<MailSchedulerService>();
+builder.Services.AddHostedService<AllSchedulerService>();
+builder.Services.AddScoped<StepRunnerService>();
+
+builder.Services.AddTransient<IMessageStep, QueryDataStep>();
+builder.Services.AddTransient<IMessageStep, FormatDataSignetStep>();
+builder.Services.AddTransient<IMessageStep, FormatDataMailStep>();
+builder.Services.AddTransient<IMessageStep, GeneratePdfStep>();
+// builder.Services.AddTransient<IMessageStep, UploadSignetStep>();
+builder.Services.AddTransient<IMessageStep, GenerateHashStep>();
+builder.Services.AddTransient<IMessageStep, SendToSignetStep>();
+builder.Services.AddTransient<IMessageStep, SendToMailStep>();
+
 await EnsureKafkaTopic.EnsureKafkaTopicsAsync("host.docker.internal:9092", new[] {
     "topic-mail", "topic-zalo", "topic-signet"
 });
@@ -199,9 +246,9 @@ app.MapFallbackToFile("index.html");
 // hierarchy.Root.Level = Level.All;
 // hierarchy.Configured = true;
 
-app.Run();
-
 app.Lifetime.ApplicationStarted.Register(() =>
 {
-    Console.WriteLine("App started on: " + string.Join(", ", builder.Configuration["urls"]));
+    Console.WriteLine("App started.");
 });
+
+app.Run();

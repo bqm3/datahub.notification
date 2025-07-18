@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using MongoDB.Bson;
 using microservice.mess.Models;
+using microservice.mess.Models.Message;
 using microservice.mess.Configurations;
 using microservice.mess.Interfaces;
 
