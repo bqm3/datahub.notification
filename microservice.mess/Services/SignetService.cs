@@ -194,7 +194,7 @@ namespace microservice.mess.Services
             using var client = _httpClientFactory.CreateClient();
             var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
 
-            var response = await client.PostAsync("http://localhost:8036/api/bot-gateway/v1/chat/post-message", content);
+            var response = await client.PostAsync("http://127.0.0.1:8036/api/bot-gateway/v1/chat/post-message", content);
             var responseContent = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)

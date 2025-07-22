@@ -23,16 +23,19 @@ using microservice.mess.Configurations;
 public class ZaloService
 {
     private readonly IHttpClientFactory _httpClientFactory;
+    private HttpClient _httpClient;
     private readonly ILogger<ZaloService> _logger;
     private readonly ZaloRepository _zaloRepository;
     private readonly ZaloSettings _zaloSettings;
     public ZaloService(
     IHttpClientFactory factory,
     IOptions<ZaloSettings> zaloOptions,
+    HttpClient httpClient,
     ILogger<ZaloService> logger,
     ZaloRepository zaloRepository)
     {
         _httpClientFactory = factory;
+        _httpClient = httpClient;
         _logger = logger;
         _zaloSettings = zaloOptions.Value;
         _zaloRepository = zaloRepository;
@@ -136,6 +139,76 @@ public class ZaloService
     public async Task CreatePromotionAsync(ZaloPromotionRequest promotion)
     {
         await _zaloRepository.InsertOrUpdateByTagAsync(promotion);
+    }
+
+    public async Task CreatePromotionTemplateAsync(ZaloPromotionRequest request)
+    {
+        var payload = new
+        {
+            recipient = new { user_id = request.UserId },
+            message = new
+            {
+                attachment = new
+                {
+                    type = "template",
+                    payload = new
+                    {
+                        template_type = "promotion",
+                        promotion = new
+                        {
+                            tag = request.Tag,
+                            elements = request.Elements.Select(e => MapElement(e)).ToList(),
+                            buttons = request.Buttons
+                        }
+                    }
+                }
+            }
+        };
+
+        var json = JsonConvert.SerializeObject(payload);
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://openapi.zalo.me/v3.0/oa/message/promotion");
+        httpRequest.Headers.Add("access_token", request.AccessToken);
+        var content = new StringContent(json, Encoding.UTF8);
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Content = content;
+
+        var response = await _httpClient.SendAsync(httpRequest);
+        var result = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+            throw new Exception($"Zalo API error: {result}");
+    }
+
+    private object MapElement(ZaloElement el)
+    {
+        if (el.Type == "table")
+        {
+            return new
+            {
+                type = "table",
+                content = el.ContentTable?.Select(row => new
+                {
+                    key = row.Key,
+                    value = row.Value
+                }).ToList()
+            };
+        }
+
+        var dict = new Dictionary<string, object>
+        {
+            ["type"] = el.Type
+        };
+
+        if (!string.IsNullOrEmpty(el.AttachmentId))
+            dict["attachment_id"] = el.AttachmentId;
+
+        if (!string.IsNullOrEmpty(el.Content))
+            dict["content"] = el.Content;
+
+        if (!string.IsNullOrEmpty(el.Align))
+            dict["align"] = el.Align;
+
+        return dict;
     }
 
     public async Task SendPromotionToUser(

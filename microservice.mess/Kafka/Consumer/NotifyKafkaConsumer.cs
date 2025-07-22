@@ -21,22 +21,25 @@ namespace microservice.mess.Kafka
         private readonly MailService _mailService;
         private readonly SignetService _signetService;
         private readonly ZaloService _zaloService;
+        private readonly SlackService _slackService;
+        private readonly TelegramService _telegramService;
         private readonly ZaloRepository _zaloRepository;
-        // private readonly SignetRepository _signetRepository;
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly ILogger<NotifyKafkaConsumer> _logger;
         private readonly LogMessageRepository _logMessageRepository;
         private readonly KafkaProducerService _kafkaProducer;
         private readonly SmtpSettings _smtpSettings;
         private readonly ZaloSettings _zaloSettings;
+        private readonly ILogger<NotifyKafkaConsumer> _logger;
 
         private readonly string _bootstrapServers = "host.docker.internal:9092";
-        private readonly string[] _topics = new[] { "topic-mail", "topic-zalo", "topic-signet" };
-
+        private readonly string[] _topics = new[] { "topic-mail" };
+//, "topic-zalo", "topic-signet", "topic-tele", "topic-slack"
         public NotifyKafkaConsumer(
             MailService mailService,
             SignetService signetService,
             ZaloService zaloService,
+            SlackService slackService,
+            TelegramService telegramService,
             ZaloRepository zaloRepository,
             IHttpClientFactory httpClientFactory,
             IOptions<SmtpSettings> smtpOptions,
@@ -48,6 +51,8 @@ namespace microservice.mess.Kafka
             _mailService = mailService;
             _signetService = signetService;
             _zaloService = zaloService;
+            _slackService = slackService;
+            _telegramService = telegramService;
             _zaloRepository = zaloRepository;
             _httpClientFactory = httpClientFactory;
             _smtpSettings = smtpOptions.Value;
@@ -91,12 +96,17 @@ namespace microservice.mess.Kafka
                         case "topic-mail":
                             await HandleMailAsync(message);
                             break;
-
                         case "topic-zalo":
                             await HandleZaloAsync(message);
                             break;
                         case "topic-signet":
                             await HandleSignetAsync(message);
+                            break;
+                        case "topic-slack":
+                            await HandleSlackAsync(message);
+                            break;
+                        case "topic-tele":
+                            await HandleTeleAsync(message);
                             break;
 
                         default:
@@ -229,6 +239,70 @@ namespace microservice.mess.Kafka
             {
                 _logger.LogError(ex, "Failed to process zalo message.");
                 // await LogErrorAndRetry("topic-zalo-error", message, ex);
+            }
+        }
+
+        private async Task HandleTeleAsync(MessageRequest message)
+        {
+            try
+            {
+                var action = message.Headers?.Action?.ToLower() ?? "";
+                var bodyItem = message.Body?.FirstOrDefault();
+                var tele = bodyItem?.Tele;
+
+                if (tele == null)
+                {
+                    _logger.LogWarning("tele payload missing.");
+                    return;
+                }
+
+                switch (action)
+                {
+                    case "send-tele-mess":
+                        await _telegramService.SendMessageAsync(tele.Message);
+                        break;
+
+                  
+
+                    default:
+                        _logger.LogWarning("Unsupported tele action: {action}", action);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to process tele message.");
+            }
+        }
+
+        private async Task HandleSlackAsync(MessageRequest message)
+        {
+            try
+            {
+                var action = message.Headers?.Action?.ToLower() ?? "";
+                var bodyItem = message.Body?.FirstOrDefault();
+                var slack = bodyItem?.Slack;
+
+                if (slack == null)
+                {
+                    _logger.LogWarning("slack payload missing.");
+                    return;
+                }
+
+                switch (action)
+                {
+                    case "send-slack-mess":
+                        await _slackService.SendMessageAsync(slack.Message);
+                        break;
+
+                    default:
+                        _logger.LogWarning("Unsupported slack action: {action}", action);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to process slack message.");
             }
         }
 

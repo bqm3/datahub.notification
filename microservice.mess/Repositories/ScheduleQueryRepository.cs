@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
+using MongoDB.Bson;
+using System.Text.RegularExpressions;
 using microservice.mess.Models;
 using microservice.mess.Models.Message;
 using microservice.mess.Configurations;
@@ -9,7 +11,7 @@ namespace microservice.mess.Repositories
 {
     public class ScheduleQueryRepository
     {
-        private readonly IMongoCollection<AllMessageTemplate> _allScheduled;
+        private readonly IMongoCollection<AllMessageTemplate> _allTemplated;
         private readonly IMongoCollection<DataScheduleModel> _dataScheduled;
         private readonly ILogger<ScheduleQueryRepository> _logger;
 
@@ -18,8 +20,8 @@ namespace microservice.mess.Repositories
             _logger = logger;
             var settings = mongoOptions.Value;
             var db = mongoClient.GetDatabase(settings.ZaloDatabase);
-            _allScheduled = db.GetCollection<AllMessageTemplate>("all_scheduled");
-            _dataScheduled= db.GetCollection<DataScheduleModel>("data_scheduled");
+            _allTemplated = db.GetCollection<AllMessageTemplate>("all_templates");
+            _dataScheduled = db.GetCollection<DataScheduleModel>("data_scheduled");
         }
 
         public async Task<List<DataScheduleModel?>> GetBySchdeduleAsync(string objID)
@@ -42,9 +44,10 @@ namespace microservice.mess.Repositories
         //     return await _templates.Find(_ => true).ToListAsync();
         // }
 
-        // public async Task<AllMessageTemplate?> GetByNameAsync(string name)
-        // {
-        //     return await _templates.Find(t => t.Name == name).FirstOrDefaultAsync();
-        // }
+        public async Task<AllMessageTemplate?> GetByNameAsync(string name)
+        {
+            var filter = Builders<AllMessageTemplate>.Filter.Regex("Name", new BsonRegularExpression($"^{Regex.Escape(name)}$", "i"));
+            return await _allTemplated.Find(filter).FirstOrDefaultAsync();
+        }
     }
 }

@@ -34,7 +34,7 @@ namespace microservice.mess.Schedules
                 throw new InvalidOperationException("rawData must be a List<BsonDocument>");
 
             var now = DateTime.UtcNow.AddHours(7);
-            var fileName = context.Schedule.Shared?.QueryData?.File ?? "default.docx";
+            var fileName = context.Schedule.Data?.File ?? "default.docx";
             var configPath = Path.Combine("templates/configs", Path.ChangeExtension(fileName, ".json"));
 
             if (!File.Exists(configPath))
@@ -62,7 +62,7 @@ namespace microservice.mess.Schedules
                 templateName = fileName,
                 outputFileName = fixedOutputFile,
                 mergeFields,
-                dataJson = includeDataJson ? GroupArticles(rawData) : null
+                // dataJson = includeDataJson ? GroupArticles(rawData) : null
             };
 
             // Dữ liệu Signet (file_view, content, ...)
@@ -85,7 +85,7 @@ namespace microservice.mess.Schedules
             var pdfData = context.Items.TryGetValue("signetDataPdf", out var pdfObj) ? pdfObj : null;
             var mergeFields = pdfData?.GetType().GetProperty("mergeFields")?.GetValue(pdfData) as Dictionary<string, string>;
 
-            var queryConfig = context.Schedule.Shared?.QueryData;
+            var queryConfig = context.Schedule?.Data;
 
             foreach (var p in template.Placeholders)
             {
@@ -102,9 +102,9 @@ namespace microservice.mess.Schedules
                     case "file_view":
                         result[key] = "Dữ liệu mặc định";
                         break;
-                    case "content":
-                        result[key] = queryConfig?.Collection ?? "(Không rõ nguồn)";
-                        break;
+                    // case "content":
+                    //     result[key] = queryConfig?.Collection ?? "(Không rõ nguồn)";
+                    //     break;
                     case "log_error":
                         result[key] = "0";
                         break;
@@ -174,27 +174,56 @@ namespace microservice.mess.Schedules
                 }).ToList();
         }
 
-        private List<object> GroupArticles(List<BsonDocument> docs)
+        private List<object> GroupArticles(List<Dictionary<string, object>> rows)
         {
-            return docs
-                .GroupBy(d => d.GetValue("chuyen_de", BsonValue.Create("Khác")).AsString)
+            return rows
+                .GroupBy(d => d.ContainsKey("CATALOG_ID") ? d["CATALOG_ID"]?.ToString() ?? "Khác" : "Khác")
                 .Select(g => new
                 {
                     category = g.Key.ToUpperInvariant(),
                     data = g.Select(d => new
                     {
-                        title = d.GetValue("title", BsonValue.Create("(Không tiêu đề)")).AsString,
-                        content = d.GetValue("content", "").AsString,
-                        author = d.GetValue("author", "").AsString,
-                        createdAt = d.TryGetValue("timestamp", out var tsVal) && tsVal.IsValidDateTime
-                            ? tsVal.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                        title = d.TryGetValue("TITLE", out var titleVal) ? titleVal?.ToString() ?? "(Không tiêu đề)" : "(Không tiêu đề)",
+                        content = d.TryGetValue("CONTENT", out var contentVal) ? contentVal?.ToString() ?? "" : "",
+                        author = d.TryGetValue("AUTHOR_NAME", out var authVal) ? authVal?.ToString() ?? "" : "",
+                        createdAt = d.TryGetValue("CREATED_AT", out var tsVal) && DateTime.TryParse(tsVal?.ToString(), out var dt)
+                            ? dt.ToString("yyyy-MM-dd HH:mm:ss")
                             : "",
-                        articleUrl = d.GetValue("articleUrl", "").AsString,
-                        image = d.GetValue("image", "").AsString
+                        articleUrl = d.TryGetValue("ARTICLE_URL", out var linkVal) ? linkVal?.ToString() ?? "" : "",
+                        image = ConvertImageBlobToBase64(d)
                     }).ToList()
-                }).ToList<object>();
+                })
+                .ToList<object>();
         }
 
+        private string ConvertImageBlobToBase64(Dictionary<string, object> row)
+        {
+            if (row.TryGetValue("IMAGE", out var imageVal) && imageVal is byte[] imageBytes && imageBytes.Length > 0)
+            {
+                string mimeType = GetMimeType(imageBytes); // Optionally detect type
+                return $"data:{mimeType};base64,{Convert.ToBase64String(imageBytes)}";
+            }
 
+            return "";
+        }
+
+        private string GetMimeType(byte[] bytes)
+        {
+            // JPEG
+            if (bytes.Length > 2 && bytes[0] == 0xFF && bytes[1] == 0xD8)
+                return "image/jpeg";
+
+            // PNG
+            if (bytes.Length > 4 && bytes[0] == 0x89 && bytes[1] == 0x50)
+                return "image/png";
+
+            return "application/octet-stream";
+        }
+
+private static string Truncate(string text, int maxLength)
+{
+    if (string.IsNullOrWhiteSpace(text)) return "(Không tiêu đề)";
+    return text.Length <= maxLength ? text : text.Substring(0, maxLength) + "...";
+}
     }
 }

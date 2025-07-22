@@ -8,10 +8,10 @@ public class SgiWebhookController : ControllerBase
     [HttpPost("on-command")]
     public IActionResult TestWebhook([FromBody] JObject payload)
     {
-        // Log payload nếu cần
-        Console.WriteLine("✅ Webhook received: " + payload.ToString());
+        // // Log payload nếu cần
+        // Console.WriteLine(" Webhook received: " + payload.ToString());
 
-        // Trả về phản hồi đơn giản
+        // Trả về phản hồi 
         return Ok(new
         {
             status = "received",

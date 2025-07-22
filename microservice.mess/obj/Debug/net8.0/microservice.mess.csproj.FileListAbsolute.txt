@@ -275,3 +275,4 @@ C:\Apollo\Code\Datahub.mess\microservice.mess\bin\Debug\net8.0\runtimes\linux\li
 C:\Apollo\Code\Datahub.mess\microservice.mess\bin\Debug\net8.0\runtimes\osx\lib\net8.0\System.DirectoryServices.Protocols.dll
 C:\Apollo\Code\Datahub.mess\microservice.mess\bin\Debug\net8.0\runtimes\win\lib\net8.0\System.DirectoryServices.Protocols.dll
 C:\Apollo\Code\Datahub.mess\microservice.mess\bin\Debug\net8.0\templates\configs\temp_v3.json
+C:\Apollo\Code\Datahub.mess\microservice.mess\bin\Debug\net8.0\templates\configs\social_ag.json

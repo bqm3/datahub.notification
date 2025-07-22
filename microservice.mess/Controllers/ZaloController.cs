@@ -30,21 +30,22 @@ namespace microservice.mess.Controllers
         private readonly ZaloService _zaloService;
         private readonly ZaloRepository _zaloRepository;
         private readonly ZaloSettings _zaloSettings;
-        private readonly KafkaProducerService _kafkaProducer;
+        // private readonly KafkaProducerService _kafkaProducer;
 
         public ZaloController(IHttpClientFactory httpClientFactory,
                       ILogger<ZaloController> logger,
                       IOptions<ZaloSettings> zaloOptions,
                       ZaloRepository zaloRepository,
-                      ZaloService zaloService,
-                      KafkaProducerService kafkaProducer)
+                      ZaloService zaloService
+                      //   KafkaProducerService kafkaProducer
+                      )
         {
             _httpClientFactory = httpClientFactory;
             _logger = logger;
             _zaloRepository = zaloRepository;
             _zaloSettings = zaloOptions.Value;
             _zaloService = zaloService;
-            _kafkaProducer = kafkaProducer;
+            // _kafkaProducer = kafkaProducer;
         }
 
         [HttpGet("callback")]
@@ -128,6 +129,16 @@ namespace microservice.mess.Controllers
         {
             await _zaloService.CreatePromotionAsync(promotion);
             return Ok("Promotion created successfully");
+        }
+
+        [HttpPost("create-template")]
+        public async Task<IActionResult> CreateTemplate([FromBody] ZaloPromotionRequest request)
+        {
+            if (string.IsNullOrEmpty(request.UserId) || string.IsNullOrEmpty(request.AccessToken))
+                return BadRequest("Missing userId or accessToken");
+
+            await _zaloRepository.CreatePromotionTemplateAsync(request);
+            return Ok(new { message = "Zalo promotion template sent successfully" });
         }
 
         // GET: /zalo/get-promotion/{id}

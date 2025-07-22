@@ -27,6 +27,7 @@ namespace microservice.mess.Models.Message
         public SignalRPayload? SignalR { get; set; }
         public SlackPayload? Slack { get; set; }
         public ZaloPayload? Zalo { get; set; }
+        public TelePayload? Tele { get; set; }
         public SendTemplateMessageRequest? Signet { get; set; }
         // Các payload khác như SMS, Signet...
     }
@@ -40,6 +41,11 @@ namespace microservice.mess.Models.Message
     {
         public string Message { get; set; } = string.Empty;
         // public string Text { get; set; } = string.Empty; 
+    }
+
+    public class TelePayload
+    {
+        public string Message { get; set; } = string.Empty;
     }
     public class ZaloPayload
     {
@@ -92,6 +98,7 @@ namespace microservice.mess.Models.Message
 
 
     // Template
+    [BsonIgnoreExtraElements]
     public class AllMessageTemplate
     {
         [BsonId]
@@ -106,7 +113,6 @@ namespace microservice.mess.Models.Message
         public List<string> Receivers { get; set; } = new();
         public string Block { get; set; } = "{}";
         public string Type { get; set; }
-
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 
@@ -146,6 +152,7 @@ namespace microservice.mess.Models.Message
         public string? Name { get; set; }
         public string? Key { get; set; }
         public string? FieldData { get; set; }
+        public string? Value { get; set; }
         public string? QueryType { get; set; }
         public string? Query { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -153,17 +160,9 @@ namespace microservice.mess.Models.Message
 
     public class ScheduleContext
     {
-        // public JObject RawData { get; set; }
-        // public string? FilePath { get; set; }
-        // public string? FileHash { get; set; }
-        // public string? FileValue { get; set; }
-        // public string? Channel { get; set; }
-        // public string? TemplateName { get; set; }
-        // public JObject Config { get; set; } // chứa JSON schedule
-        // public Dictionary<string, object> Items { get; } = new(); // cho các step custom gắn thêm data
         public ScheduledAllModel Schedule { get; set; } = default!;
-        public ChannelType Channel { get; set; }
-        public Dictionary<string, object> Items { get; } = new(); // cho dữ liệu giữa các step
+        public string Channel { get; set; }
+        public Dictionary<string, object> Items { get; } = new(); 
         public IServiceProvider Services { get; set; } = default!;
     }
 
@@ -176,42 +175,49 @@ namespace microservice.mess.Models.Message
 
         public string Name { get; set; } = string.Empty;
 
-        public List<ChannelType> Channels { get; set; } = new();
+        public string? Channel { get; set; }
 
-        public Dictionary<string, List<string>> Steps { get; set; } = new();
+        // public QueryDataModel? Shared { get; set; } = new();
 
-        public SharedConfig Shared { get; set; } = new();
-
-        public List<string> To { get; set; } = new();
+        // public List<string>? To { get; set; } = new();
 
         public DataConfig Data { get; set; } = new();
 
-        public string? Subject { get; set; }
+        // public string? Subject { get; set; }
 
-        public string? From { get; set; }
+        // public string? From { get; set; }
 
         public DateTime ScheduledTime { get; set; }
 
         public bool IsSent { get; set; } = false;
 
-        public RecurrenceType Recurrence { get; set; } = RecurrenceType.Once;
+        public string Recurrence { get; set; }
 
-        public List<DayOfWeek>? DaysOfWeek { get; set; }
+        public List<string>? DaysOfWeek { get; set; }
 
         public List<TimeSpan>? TimesOfDay { get; set; }
 
-        public Dictionary<string, bool> ChannelStatus { get; set; } = new();
+        public bool ChannelStatus { get; set; } = false;
 
         public DateTime? LastSentAt { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 
-    public class SharedConfig
-    {
-        public QueryDataModel QueryData { get; set; } = new();
-    }
+    // public class SharedConfig
+    // {
+    //     public QueryDataModel QueryData { get; set; } = new();
+    // }
 
+
+    // public enum RecurrenceType
+    // {
+    //     Once,       // Gửi 1 lần
+    //     Daily,      // Gửi mỗi ngày
+    //     Weekly,     // Gửi mỗi tuần
+    //     Hourly,      // Gửi theo giờ
+    //     Custom
+    // }
 
     public class DataConfig
     {
@@ -230,14 +236,14 @@ namespace microservice.mess.Models.Message
         public BsonDocument? ExtraElements { get; set; }  // giữ lại các trường lạ
     }
 
-    public class QueryDataModel
-{
-    public string Type { get; set; } = "mongo";
-    public string Source { get; set; } = string.Empty;
-    public string Collection { get; set; } = string.Empty;
-    public string Query { get; set; } = string.Empty;
-    public string File { get; set; }
-}
+    // public class QueryDataModel
+    // {
+    //     public string Type { get; set; } = "mongo";
+    //     public string Source { get; set; } = string.Empty;
+    //     public string Collection { get; set; } = string.Empty;
+    //     public string Query { get; set; } = string.Empty;
+    //     public string File { get; set; }
+    // }
 
 
     public class ShareSocial
@@ -256,13 +262,14 @@ namespace microservice.mess.Models.Message
         public DateTime CREATED_AT { get; set; }
     }
 
-    public enum ChannelType
-    {
-        Email,
-        Zalo,
-        Signet,
-        SignalR,
-        Slack
-    }
+    // public enum ChannelType
+    // {
+    //     Email,
+    //     Zalo,
+    //     Signet,
+    //     SignalR,
+    //     Slack,
+    //     Tele
+    // }
 
 }

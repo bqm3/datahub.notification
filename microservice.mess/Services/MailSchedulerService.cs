@@ -40,7 +40,7 @@ namespace microservice.mess.Services
                 {
                     try
                     {
-                        if (!ShouldSendEmail(email, now)) continue;
+                        // if (!ShouldSendEmail(email, now)) continue;
 
                         await mailService.SendEmailAsync(new SendMailByNameRequest
                         {
@@ -51,7 +51,7 @@ namespace microservice.mess.Services
                             From = email.From
                         });
 
-                        if (email.Recurrence == RecurrenceType.Once)
+                        if (email.Recurrence == "ONCE")
                         {
                             email.IsSent = true;
                         }
@@ -93,27 +93,25 @@ namespace microservice.mess.Services
                    email.TimesOfDay?.Any(t => IsSameTime(last.TimeOfDay, t)) == true;
         }
 
-        private bool ShouldSendEmail(ScheduledEmailModel email, DateTime now)
-        {
-            switch (email.Recurrence)
-            {
-                case RecurrenceType.Once:
-                    return !email.IsSent && now >= email.ScheduledTime;
+        // private bool ShouldSendEmail(ScheduledEmailModel email, DateTime now)
+        // {
+        //     switch (email.Recurrence)
+        //     {
+        //         case "ONCE":
+        //             return !email.IsSent && now >= email.ScheduledTime;
 
-                case RecurrenceType.Daily:
-                    return email.TimesOfDay?.Any(t => IsSameTime(now.TimeOfDay, t)) == true &&
-                           !WasAlreadySentToday(email, now);
+        //         case "DAILY":
+        //             return email.TimesOfDay?.Any(t => IsSameTime(now.TimeOfDay, t)) == true &&
+        //                    !WasAlreadySentToday(email, now);
 
-                case RecurrenceType.Weekly:
-                case RecurrenceType.Custom:
-                    return email.DaysOfWeek?.Contains(now.DayOfWeek) == true &&
-                           email.TimesOfDay?.Any(t => IsSameTime(now.TimeOfDay, t)) == true &&
-                           !WasAlreadySentToday(email, now);
-            }
+        //         // case "WEEKLY":
+        //         // case "CUSTOM":
+        //         //     return email.DaysOfWeek?.Contains(now.DayOfWeek) == true &&
+        //         //            email.TimesOfDay?.Any(t => IsSameTime(now.TimeOfDay, t)) == true &&
+        //         //            !WasAlreadySentToday(email, now);
+        //     }
 
-            return false;
-        }
-
-
+        //     return false;
+        // }
     }
 }

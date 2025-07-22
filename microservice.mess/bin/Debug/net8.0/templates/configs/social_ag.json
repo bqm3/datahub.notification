@@ -1,0 +1,79 @@
+{
+  "DataJson": {
+    "SOCIAL_AGI_GITH": "GIAO THÔNG",
+    "SOCIAL_AGI_TTXH": "TRẬT TỰ XÃ HỘI",
+    "SOCIAL_AGI_KNTC": "KHIẾU NẠI TỐ CÁO"
+  },
+  "GIAO THÔNG": {
+    "Charts": [
+      {
+        "MergeField": "ANH_TONGQUAN",
+        "Width": 500,
+        "Height": 300
+      }
+    ],
+    "TemplateExcel": "ChartDB_No1.xlsx",
+    "TemplateWord": "SOCIAL_AGI_GITH.docx",
+    "MergeFields": {
+      "TIEU_DE": "DỮ LIỆU HÀNG NGÀY",
+      "NGAY": "",
+      "NGUOI_LAP": "GOV Truyền thông",
+      "BAN_TIN_NGAY": "",
+      "TITLE": "THÔNG TIN GIAO THÔNG TRONG NGÀY {{before}}",
+      "LOCATION": "TỈNH AN GIANG"
+    },
+    "File_hash": "file_view",
+    "File": "SOCIAL_AGI_GITH_{{before}}.pdf",
+    "Data": {
+      "ANH_TONGQUAN": ""
+    }
+  },
+  "TRẬT TỰ XÃ HỘI": {
+    "Charts": [
+      {
+        "MergeField": "ANH_TONGQUAN",
+        "Width": 500,
+        "Height": 300
+      }
+    ],
+    "TemplateExcel": "ChartDB_No1.xlsx",
+    "TemplateWord": "SOCIAL_AGI_TTXH.docx",
+    "MergeFields": {
+      "TIEU_DE": "DỮ LIỆU HÀNG NGÀY",
+      "NGAY": "",
+      "NGUOI_LAP": "GOV Truyền thông",
+      "BAN_TIN_NGAY": "",
+      "TITLE": "THÔNG TIN TRẬT TỰ XÃ HỘI TRONG NGÀY {{send_date}}",
+      "LOCATION": "TỈNH AN GIANG"
+    },
+    "File_hash": "file_view",
+    "File": "SOCIAL_AGI_TTXH_{{send_date}}.pdf",
+    "Data": {
+      "ANH_TONGQUAN": ""
+    }
+  },
+  "KHIẾU NẠI TỐ CÁO": {
+    "Charts": [
+      {
+        "MergeField": "ANH_TONGQUAN",
+        "Width": 500,
+        "Height": 300
+      }
+    ],
+    "TemplateExcel": "ChartDB_No1.xlsx",
+    "TemplateWord": "SOCIAL_AGI_KNTC.docx",
+    "MergeFields": {
+      "TIEU_DE": "DỮ LIỆU HÀNG NGÀY",
+      "NGAY": "",
+      "NGUOI_LAP": "GOV Truyền thông",
+      "BAN_TIN_NGAY": "",
+      "TITLE": "THÔNG TIN KHIẾU NẠI TỐ CÁO TRONG NGÀY {{send_date}}",
+      "LOCATION": "TỈNH AN GIANG"
+    },
+    "File_hash": "file_view",
+    "File": "SOCIAL_AGI_KNTC_{{send_date}}.pdf",
+    "Data": {
+      "ANH_TONGQUAN": ""
+    }
+  }
+}

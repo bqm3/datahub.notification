@@ -18,18 +18,21 @@ public class ChartWordExporter
 {
     private readonly ILogger _logger;
 
-    public void InsertChartsAndMergeFields(
+    public async Task InsertChartsAndMergeFields(
         string templatePath,
         string outputPath,
-        Dictionary<string, string> fieldToImageMap,
+        Dictionary<string, string> imagePaths,
         Dictionary<string, string> mergeFields,
-        List<DataJsonCategory>? dataJson = null,
-        TemplateConfig? templateConfig = null
+        Dictionary<string, string> dataJsonMap,
+        List<DataJsonCategory> groupedArticles,
+        TemplateConfig config
     )
     {
         var doc = new Document(templatePath);
         var builder = new DocumentBuilder(doc);
 
+        // * MergeFields
+        // Cấu hình style cho các field cụ thể
         var fieldStyles = new Dictionary<string, MergeFieldStyle>(StringComparer.OrdinalIgnoreCase)
         {
             ["TITLE"] = new MergeFieldStyle
@@ -61,30 +64,39 @@ public class ChartWordExporter
             Bold = false
         };
 
-        // MERGE FIELDS
-        if (mergeFields != null)
+        // Xử lý placeholder ngày {{before}}, {{now}}
+        var now = DateTime.Now;
+        string nowDate = now.ToString("dd/MM/yyyy");
+        string beforeDate = now.AddDays(-1).ToString("dd/MM/yyyy");
+
+        var resolvedMergeFields = mergeFields.ToDictionary(
+            kv => kv.Key,
+            kv => kv.Value
+                .Replace("{{now}}", nowDate)
+                .Replace("{{before}}", beforeDate)
+                .Replace("{{send_date}}", nowDate)
+        );
+
+        // Replace fields với style
+        foreach (var field in resolvedMergeFields)
         {
-            foreach (var field in mergeFields)
+            MergeFieldStyle style = fieldStyles.TryGetValue(field.Key, out var customStyle)
+                ? customStyle
+                : defaultStyle;
+
+            var options = new FindReplaceOptions
             {
-                // lấy style từ dictionary, nếu không có thì dùng style mặc định
-                MergeFieldStyle style = fieldStyles.TryGetValue(field.Key, out var customStyle)
-                    ? customStyle
-                    : defaultStyle;
+                Direction = FindReplaceDirection.Forward,
+                ReplacingCallback = new StyledMergeFieldReplacer(
+                    field.Value,
+                    fontName: style.FontName,
+                    fontSize: style.FontSize,
+                    fontColor: style.FontColor,
+                    isBold: style.Bold
+                )
+            };
 
-                var options = new FindReplaceOptions
-                {
-                    Direction = FindReplaceDirection.Forward,
-                    ReplacingCallback = new StyledMergeFieldReplacer(
-                        field.Value,
-                        fontName: style.FontName,
-                        fontSize: style.FontSize,
-                        fontColor: style.FontColor,
-                        isBold: style.Bold
-                    )
-                };
-
-                doc.Range.Replace($"«{field.Key}»", "", options);
-            }
+            doc.Range.Replace($"«{field.Key}»", "", options);
         }
 
         // IMAGE
@@ -94,9 +106,9 @@ public class ChartWordExporter
         // Tạo dictionary cho kích thước chart từ config
         var chartSizes = new Dictionary<string, (double Width, double Height)>(StringComparer.OrdinalIgnoreCase);
 
-        if (templateConfig?.Charts != null)
+        if (config?.Charts != null)
         {
-            foreach (var chart in templateConfig.Charts)
+            foreach (var chart in config.Charts)
             {
                 if (!string.IsNullOrWhiteSpace(chart.MergeField) &&
                     chart.Width.HasValue && chart.Height.HasValue)
@@ -110,7 +122,7 @@ public class ChartWordExporter
             }
         }
 
-        foreach (var kv in fieldToImageMap)
+        foreach (var kv in imagePaths)
         {
             string fieldName = kv.Key;
             string imagePath = kv.Value;
@@ -175,10 +187,10 @@ public class ChartWordExporter
         }
 
         // DATA JSON
-        if (dataJson != null && dataJson.Any())
-        {
-            InsertArticleBlocksFromDataJson(doc, builder, dataJson);
-        }
+        // if (dataJsonMap != null && dataJsonMap.Any())
+        // {
+         await InsertArticleBlocksFromDataJson(doc, builder, dataJsonMap, groupedArticles);
+        // }
 
         try
         {
@@ -245,8 +257,6 @@ public class ChartWordExporter
         string imagePath
     )
     {
-        Console.WriteLine($"Setting size for field: {fieldName}");
-        Console.WriteLine($"Available chart sizes: {string.Join(", ", chartSizes.Keys)}");
 
         if (chartSizes.TryGetValue(fieldName, out var configSize))
         {
@@ -320,40 +330,50 @@ public class ChartWordExporter
 
         return totalWidth;
     }
-    public void InsertArticleBlocksFromDataJson(Document doc, DocumentBuilder builder, List<DataJsonCategory> dataJson)
+    public async Task InsertArticleBlocksFromDataJson(
+    Document doc,
+    DocumentBuilder builder,
+    Dictionary<string, string> dataJsonMap, // key = field trong Word, value = chuyên mục hiển thị
+    List<DataJsonCategory> allGroupedArticles) // data thực sự của các chuyên mục
     {
-        foreach (var block in dataJson)
+        foreach (var kv in dataJsonMap)
         {
-            string category = block.Category;
-            string placeholderName;
+            string fieldName = kv.Key;              // ví dụ: "SOCIAL_AGI_GITH"
+            string displayCategory = kv.Value;      // ví dụ: "GIAO THÔNG"
 
-            if (category.StartsWith("SOCIAL_", StringComparison.OrdinalIgnoreCase))
+            Console.WriteLine($"[DataJsonMap] Field: {fieldName}, DisplayCategory: {displayCategory}");
+
+            var articleData = allGroupedArticles
+                .FirstOrDefault(c => string.Equals(c.Category, displayCategory, StringComparison.OrdinalIgnoreCase));
+
+            if (articleData == null)
             {
-                placeholderName = category;
+                Console.WriteLine($"[DataJsonMap] ❌ Không tìm thấy dữ liệu cho chuyên mục '{displayCategory}'");
+                continue;
             }
-            else
-            {
-                string shortKey = PkceHelper.NormalizeCategoryPlaceholder(category);
-                placeholderName = $"CHUYENMUC_{shortKey}";
-            }
+
+            Console.WriteLine($"[DataJsonMap] ✅ Tìm thấy {articleData.Data?.Count ?? 0} bài viết cho chuyên mục '{displayCategory}'");
 
             foreach (Field field in doc.Range.Fields)
             {
                 if (field.Type == FieldType.FieldMergeField)
                 {
-                    var fieldCode = field.GetFieldCode();
+                    string fieldCode = field.GetFieldCode();
+                    // Console.WriteLine($"[FieldCheck] Đang kiểm tra field code: {fieldCode}");
 
-                    if (fieldCode.Contains(placeholderName, StringComparison.OrdinalIgnoreCase))
+                    if (fieldCode.Contains(fieldName, StringComparison.OrdinalIgnoreCase))
                     {
+                        Console.WriteLine($"[FieldMatch] ↪ Đã match field «{fieldName}» với merge field trong Word");
 
                         builder.MoveToField(field, true);
-                        HtmlArticleRenderer.RenderArticlesWithLayout(builder, category, block.Data);
+
+                        // Render với tiêu đề category
+                       await HtmlArticleRenderer.RenderArticlesWithLayout(builder, displayCategory, articleData.Data);
+
                         field.Remove();
                     }
                 }
             }
         }
     }
-
-
 }

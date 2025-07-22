@@ -63,6 +63,16 @@ namespace microservice.mess.Services
                             Body = renderedBody,
                             IsBodyHtml = true
                         };
+                        if (request.Attachments != null)
+                        {
+                            foreach (var file in request.Attachments)
+                            {
+                                var stream = new MemoryStream(file.Content);
+                                var attachment = new Attachment(stream, file.FileName, file.ContentType);
+                                message.Attachments.Add(attachment);
+                            }
+                        }
+
 
                         message.To.Add(toEmail); // không cần lại tạo MailAddress
                         await client.SendMailAsync(message);

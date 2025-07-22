@@ -311,20 +311,21 @@ namespace microservice.mess.Models.Message
     {
         public List<Dictionary<string, object>> Data { get; set; } = new();
         public List<ChartDefinition> Charts { get; set; } = new();
-        public string TemplateName { get; set; } = "";       // ví dụ: "temp.docx"
-        public string OutputFileName { get; set; } = "";     // ví dụ: "report_for_user1.docx"
-        public Dictionary<string, string> MergeFields { get; set; } = new(); // ví dụ: { "TIEU_DE": "Báo cáo quý", "NGAY": "14/07/2025" }
-        public Dictionary<string, string> Files { get; set; } = new(); // ví dụ: { "File_Hash": "ixxx!abc..." }
+        public string TemplateName { get; set; } = "";
+        public string OutputFileName { get; set; } = "";
+        public List<DataJsonCategory> GroupedArticles { get; set; } = new();
+        public Dictionary<string, string> MergeFields { get; set; } = new();
+        public Dictionary<string, string> Files { get; set; } = new();
 
-        [JsonPropertyName("dataJson")]
+        // ✅ Chính xác hóa phần DataJson: danh sách các khối bài viết theo chủ đề
+        [JsonPropertyName("DataJson")]
         public List<DataJsonCategory> DataJson { get; set; } = new();
-        // public Dictionary<string, string>  Data { get; set; } = new();
     }
 
     public class DataJsonCategory
     {
-        public string Category { get; set; }
-        public List<ArticleItem> Data { get; set; }
+        public string Category { get; set; } = "";
+        public List<ArticleItem> Data { get; set; } = new();
     }
 
     public class ArticleItem
@@ -337,12 +338,15 @@ namespace microservice.mess.Models.Message
         public string? ArticleUrl { get; set; }
     }
 
+
     public class TemplateConfig
     {
         public List<ChartDefinition> Charts { get; set; } = new();
-
         public string? TemplateExcel { get; set; }
+        public string? TemplateWord { get; set; }
+        public string? File { get; set; } = "";
         public Dictionary<string, string>? MergeFields { get; set; }
+        public Dictionary<string, string> DataJson { get; set; } 
     }
 
     public class ChartDefinition

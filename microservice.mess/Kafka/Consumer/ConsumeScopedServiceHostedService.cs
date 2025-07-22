@@ -38,6 +38,8 @@ namespace microservice.mess.Kafka.Consumer
                         services.GetRequiredService<MailService>(),
                         services.GetRequiredService<SignetService>(),
                         services.GetRequiredService<ZaloService>(),
+                        services.GetRequiredService<SlackService>(),
+                        services.GetRequiredService<TelegramService>(),
                         services.GetRequiredService<ZaloRepository>(),
                         services.GetRequiredService<IHttpClientFactory>(),
                         services.GetRequiredService<IOptions<SmtpSettings>>(),

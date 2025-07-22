@@ -16,14 +16,14 @@ using microservice.mess.Configurations;
 using microservice.mess.Repositories;
 using microservice.mess.Schedules;
 using microservice.mess.Interfaces;
-using microservice.mess.Kafka.Consumer;
+// using microservice.mess.Kafka.Consumer;
 using microservice.mess.Hubs;
 using Microsoft.OpenApi.Models;
 using microservice.mess.Filters;
 using microservice.mess.Models;
 using microservice.mess.Services;
 using microservice.mess.Services.Storage;
-using microservice.mess.Kafka;
+// using microservice.mess.Kafka;
 using microservice.mess.Documents;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -91,27 +91,35 @@ builder.Services.AddScoped<MailRepository>();
 builder.Services.AddScoped<MailService>();
 builder.Services.AddScoped<SignetService>();
 builder.Services.AddScoped<ZaloService>();
-builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<SocialAGService>();
+builder.Services.AddScoped<TelegramService>();
 builder.Services.AddScoped<SignalRService>();
-builder.Services.AddScoped<KafkaProducerService>();
+// builder.Services.AddScoped<KafkaProducerService>();
 builder.Services.AddScoped<SlackService>();
+builder.Services.AddScoped<MongoQueryExecutor>();
 
 // documents
 builder.Services.AddScoped<SgiPdfChart>();
 // builder.Services.AddScoped<ChartMapper>();
 
 
-builder.Services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
+// builder.Services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
 builder.Services.AddScoped<IStorageService, MinioStorageService>();
+// builder.Services.AddScoped<IMessageStep, ResolveScheduleFieldStep>();
+builder.Services.AddScoped<IScheduleFieldQueryRepository, ScheduleFieldQueryRepository>();
 builder.Services.AddSingleton<ILogMessage, LogMessageRepository>();
 
 //kafka
-builder.Services.AddHostedService<ConsumeScopedServiceHostedService>();
+// builder.Services.AddHostedService<ConsumeScopedServiceHostedService>();
 
 // scheduler 
 builder.Services.AddHostedService<MailSchedulerService>();
 builder.Services.AddHostedService<AllSchedulerService>();
-builder.Services.AddScoped<StepRunnerService>();
+builder.Services.AddScoped<ScheduleFieldQueryService>();
+// builder.Services.AddScoped<StepRunnerService>();
+builder.Services.AddScoped<SendToMailStep>();
+builder.Services.AddScoped<ResolveScheduleFieldStep>();
+builder.Services.AddScoped<FormatDataMailStep>();
 
 builder.Services.AddTransient<IMessageStep, QueryDataStep>();
 builder.Services.AddTransient<IMessageStep, FormatDataSignetStep>();
@@ -120,12 +128,15 @@ builder.Services.AddTransient<IMessageStep, GeneratePdfStep>();
 // builder.Services.AddTransient<IMessageStep, UploadSignetStep>();
 builder.Services.AddTransient<IMessageStep, GenerateHashStep>();
 builder.Services.AddTransient<IMessageStep, SendToSignetStep>();
-builder.Services.AddTransient<IMessageStep, SendToMailStep>();
+// builder.Services.AddTransient<IMessageStep, SendToMailStep>();
 
-await EnsureKafkaTopic.EnsureKafkaTopicsAsync("host.docker.internal:9092", new[] {
-    "topic-mail", "topic-zalo", "topic-signet"
-});
+// await EnsureKafkaTopic.EnsureKafkaTopicsAsync("host.docker.internal:9092", new[] {
+//     "topic-mail"
+// });
+
+// , "topic-zalo", "topic-signet", "topic-tele", "topic-slack"
 //http client
+builder.Services.AddHttpClient<TelegramService>();
 builder.Services.AddHttpClient();
 builder.Services.AddControllers().AddNewtonsoftJson(); ;
 builder.Services.AddSignalR();
@@ -168,7 +179,7 @@ builder.Services.AddCors(options =>
             "http://localhost:3000",
             "http://localhost:7226",
             "http://host.docker.internal:7226",
-            "https://54897ee56612.ngrok-free.app",
+            "https://4b98e16b1218.ngrok-free.app",
             "http://192.168.1.77:7226"
         )
         .AllowAnyHeader()

@@ -28,8 +28,8 @@ namespace microservice.mess.Schedules
         {
             try
             {
-                _logger.LogInformation("🔍 [QueryDataStep] Start query for schedule '{name}' on channel '{channel}'",
-                    context.Schedule.Name, context.Channel);
+                _logger.LogInformation("🔍 [QueryDataStep] Start query for schedule '{name}' ",
+                    context.Schedule.Name, context.Schedule.Channel);
 
                 var queryConfig = context.Schedule.Data;  // vì đã là kiểu DataConfig
 
@@ -131,9 +131,18 @@ namespace microservice.mess.Schedules
                         ["source"] = reader["CHANNEL_NAME"]?.ToString() ?? "",
                         ["author"] = reader["AUTHOR_NAME"]?.ToString() ?? "",
                         ["articleUrl"] = reader["ARTICLE_URL"]?.ToString() ?? "",
-                        ["image"] = reader["IMAGE"] is byte[] imgBytes ? Convert.ToBase64String(imgBytes) : "",
                         ["timestamp"] = reader["CREATED_AT"] is DateTime dt ? dt : BsonNull.Value
                     };
+                    if (reader["IMAGE"] is byte[] imgBytes)
+                    {
+                        var mime = GetImageMime(imgBytes);
+                        doc["image"] = $"data:image/{mime};base64,{Convert.ToBase64String(imgBytes)}";
+                    }
+                    else
+                    {
+                        doc["image"] = "";
+                    }
+
                     result.Add(doc);
                 }
 
@@ -164,5 +173,30 @@ namespace microservice.mess.Schedules
                     return (Builders<BsonDocument>.Filter.Empty, null);
             }
         }
+
+        private string GetImageMime(byte[] bytes)
+        {
+            if (bytes.Length >= 4)
+            {
+                // JPEG
+                if (bytes[0] == 0xFF && bytes[1] == 0xD8)
+                    return "jpeg";
+
+                // PNG
+                if (bytes[0] == 0x89 && bytes[1] == 0x50)
+                    return "png";
+
+                // GIF
+                if (bytes[0] == 0x47 && bytes[1] == 0x49)
+                    return "gif";
+
+                // BMP
+                if (bytes[0] == 0x42 && bytes[1] == 0x4D)
+                    return "bmp";
+            }
+
+            return "jpeg"; // fallback
+        }
+
     }
 }

@@ -11,6 +11,7 @@ namespace microservice.mess.Models
         public string Subject { get; set; } = string.Empty;
         public string BodyHtml { get; set; } = string.Empty;
         public string? From { get; set; } = null; // optional
+        public List<EmailAttachment>? Attachments { get; set; }
     }
 
     public class SendMailByNameRequest
@@ -21,23 +22,17 @@ namespace microservice.mess.Models
         public string? From { get; set; }
         public string? Subject { get; set; } // có thể override
         public List<EmailAttachment>? Attachments { get; set; }
+        public string? BodyHtml { get; set; } // thêm dòng này để fix lỗi
     }
 
     public class EmailAttachment
     {
         public string FileName { get; set; } = string.Empty;        // Tên file hiển thị
-        public string ContentBase64 { get; set; } = string.Empty;   // Nội dung file dưới dạng base64
-        public string MimeType { get; set; } = "application/pdf";   // Kiểu MIME
+        public byte[] Content { get; set; } = Array.Empty<byte>();  // Nội dung file
+        public string ContentType { get; set; } = "application/pdf";   // Kiểu MIME
     }
 
-    public enum RecurrenceType
-    {
-        Once,       // Gửi 1 lần
-        Daily,      // Gửi mỗi ngày
-        Weekly,     // Gửi mỗi tuần
-        Hourly,      // Gửi theo giờ
-        Custom
-    }
+    
     public class ScheduledEmailModel
     {
         [BsonId]
@@ -50,9 +45,9 @@ namespace microservice.mess.Models
         public string? From { get; set; }
         public DateTime ScheduledTime { get; set; }  // Thời gian lần đầu gửi
         public bool IsSent { get; set; } = false;
-        public RecurrenceType Recurrence { get; set; } = RecurrenceType.Once;
+        public string Recurrence { get; set; }
 
-        public List<DayOfWeek>? DaysOfWeek { get; set; } = null; // Với Weekly hoặc Custom
+        public List<string>? DaysOfWeek { get; set; }
         public List<TimeSpan>? TimesOfDay { get; set; } = null;  // Giờ cụ thể trong ngày
 
         public DateTime? LastSentAt { get; set; }    // Thời gian gửi gần nhất

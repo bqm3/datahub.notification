@@ -23,14 +23,14 @@ namespace microservice.mess.Repositories
         {
             var filter = Builders<ScheduledEmailModel>.Filter.Or(
                 Builders<ScheduledEmailModel>.Filter.And(
-                    Builders<ScheduledEmailModel>.Filter.Eq(e => e.Recurrence, RecurrenceType.Once),
+                    Builders<ScheduledEmailModel>.Filter.Eq(e => e.Recurrence, "ONCE"),
                     Builders<ScheduledEmailModel>.Filter.Eq(e => e.IsSent, false),
                     Builders<ScheduledEmailModel>.Filter.Lte(e => e.ScheduledTime, now)
                 ),
                 Builders<ScheduledEmailModel>.Filter.In(e => e.Recurrence, new[] {
-                    RecurrenceType.Daily,
-                    RecurrenceType.Weekly,
-                    RecurrenceType.Custom
+                    "DAILY",
+                    "WEEKLY",
+                    "CUSTOM"
                 })
             );
 

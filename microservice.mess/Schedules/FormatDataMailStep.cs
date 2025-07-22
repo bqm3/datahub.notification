@@ -28,15 +28,12 @@ namespace microservice.mess.Schedules
 
         public async Task ExecuteAsync(ScheduleContext context)
         {
-            context.Items.TryGetValue("rawData", out var rawDataObj);
-            var rawData = rawDataObj as List<BsonDocument>;
-            if (rawData == null)
-                throw new InvalidOperationException("rawData must be a List<BsonDocument>");
+            if (!context.Items.TryGetValue("mergeFields", out var mergeFieldsObj) || mergeFieldsObj is not Dictionary<string, object> mergeFields)
+                throw new InvalidOperationException("Missing or invalid 'mergeFields' in context.");
 
             var now = DateTime.UtcNow.AddHours(7);
-            var firstDoc = rawData.FirstOrDefault();
 
-            var fileName = context.Schedule.Shared?.QueryData?.File ?? "default.docx";
+            var fileName = context.Schedule.Data?.File ?? "default.docx";
             var configPath = Path.Combine("templates/configs", Path.ChangeExtension(fileName, ".json"));
             if (!File.Exists(configPath))
                 throw new FileNotFoundException("Template config file not found", configPath);
@@ -49,23 +46,47 @@ namespace microservice.mess.Schedules
             if (mailTemplate == null)
                 throw new InvalidOperationException("Không tìm thấy template email theo tên schedule");
 
+            // Build map từ placeholder gốc {{key}} => giá trị từ mergeFields
             var placeholderMap = new Dictionary<string, string>();
             foreach (var placeholder in mailTemplate.Placeholders)
             {
                 var key = placeholder.Replace("{{", "").Replace("}}", "");
-                var value = GetValueFromRaw(firstDoc, key, now);
+                var value = mergeFields.TryGetValue(key, out var val) ? val?.ToString() ?? "" : "(N/A)";
                 placeholderMap[placeholder] = value;
             }
 
-            context.Items["mailData"] = new
+            var bodyHtml = ReplacePlaceholders(mailTemplate.BodyHtml, placeholderMap);
+            var pdfPath = "Exports/Bao_cao_chi_tiet_17_07_2025.pdf"; // đường dẫn file PDF
+            var fileBytes = await File.ReadAllBytesAsync(pdfPath);
+            // Ghi đè hoặc tạo mới MailPayload
+            if (context.Items.TryGetValue("mailData", out var existing) && existing is MailPayload existingPayload)
             {
-                Subject = mailTemplate.Subject,
-                BodyHtml = ReplacePlaceholders(mailTemplate.BodyHtml, placeholderMap),
-                LogoUrl = mailTemplate.LogoUrl,
-                Receivers = mailTemplate.Receivers,
-                SkipReceiverError = mailTemplate.SkipReceiverError
-            };
+                existingPayload.BodyHtml = ReplacePlaceholders(existingPayload.BodyHtml, placeholderMap);
+                context.Items["mailData"] = existingPayload;
+            }
+            else
+            {
+                context.Items["mailData"] = new MailPayload
+                {
+                    Subject = mailTemplate.Subject,
+                    BodyHtml = bodyHtml,
+                    To = mailTemplate.Receivers,
+                    // From = context.Schedule.From,
+                    Attachments = new List<EmailAttachment>
+                    {
+                        new EmailAttachment
+                        {
+                            FileName = "BaoCaoThongKe.pdf",
+                            Content = fileBytes,
+                            ContentType = "application/pdf"
+                        }
+                    }
+                };
+            }
+
+            _logger.LogInformation("Đã format mailData với các placeholders: {placeholders}", JsonConvert.SerializeObject(placeholderMap, Formatting.Indented));
         }
+
 
         private string ReplacePlaceholders(string template, IDictionary<string, string> placeholderMap)
         {
@@ -75,149 +96,5 @@ namespace microservice.mess.Schedules
             }
             return template;
         }
-
-        private string GetValueFromRaw(BsonDocument doc, string key, DateTime now)
-        {
-            switch (key.ToLowerInvariant())
-            {
-                case "date":
-                    return now.ToString("dd/MM/yyyy");
-                case "name":
-                case "voucher_code":
-                case "expiry_date":
-                case "promotion_url":
-                    return doc.GetValue(key, BsonValue.Create("(N/A)")).ToString();
-                default:
-                    return doc.TryGetValue(key, out var val) ? val.ToString() : "(N/A)";
-            }
-        }
-
-
-
-
-        // public async Task<IDictionary<string, string>> BuildSignetPlaceholderMapAsync(ScheduleContext context, List<BsonDocument> rawData)
-        // {
-        //     var template = await _signetRepository.GetTemplateByNameAsync(context.Schedule.Name);
-        //     if (template?.Placeholders?.Any() != true)
-        //         return new Dictionary<string, string>();
-
-        //     var result = new Dictionary<string, string>();
-        //     var firstDoc = rawData.FirstOrDefault();
-        //     var now = DateTime.UtcNow.AddHours(7);
-
-        //     var pdfData = context.Items.TryGetValue("signetDataPdf", out var pdfObj) ? pdfObj : null;
-        //     var mergeFields = pdfData?.GetType().GetProperty("mergeFields")?.GetValue(pdfData) as Dictionary<string, string>;
-
-        //     var queryConfig = context.Schedule.Shared?.QueryData;
-
-        //     foreach (var p in template.Placeholders)
-        //     {
-        //         var key = p.Replace("{{", "").Replace("}}", "");
-
-        //         switch (key.ToLowerInvariant())
-        //         {
-        //             case "date":
-        //                 result[key] = now.ToString("dd/MM/yyyy");
-        //                 break;
-        //             case "current":
-        //                 result[key] = rawData.Count.ToString();
-        //                 break;
-        //             case "file_view":
-        //                 result[key] = "Dữ liệu mặc định";
-        //                 break;
-        //             case "content":
-        //                 result[key] = queryConfig?.Collection ?? "(Không rõ nguồn)";
-        //                 break;
-        //             case "log_error":
-        //                 result[key] = "0";
-        //                 break;
-        //             case "log_number":
-        //                 result[key] = "0";
-        //                 break;
-        //             case "service":
-        //                 result[key] = "Service notify";
-        //                 break;
-        //             default:
-        //                 try
-        //                 {
-        //                     result[key] = GetFieldFromDoc(firstDoc, key);
-        //                 }
-        //                 catch
-        //                 {
-        //                     result[key] = "(N/A)";
-        //                 }
-        //                 break;
-        //         }
-        //     }
-
-        //     return result;
-        // }
-
-
-
-        // private string GetFieldFromDoc(BsonDocument doc, string key)
-        // {
-        //     if (doc.TryGetValue(key, out var val))
-        //         return val.ToString();
-
-        //     if (doc.Contains("message") && doc["message"].AsBsonDocument.Contains("properties"))
-        //     {
-        //         var props = doc["message"]["properties"].AsBsonDocument;
-        //         if (props.TryGetValue(key, out var nestedVal))
-        //             return nestedVal.AsBsonArray.FirstOrDefault()?.AsString ?? "";
-        //     }
-
-        //     return "(N/A)";
-        // }
-
-        // private List<Dictionary<string, object>> AggregateChart(List<BsonDocument> docs)
-        // {
-        //     // Xác định tất cả các "source" có thật
-        //     var allSources = docs
-        //         .Where(d => d.TryGetValue("source", out var _))
-        //         .Select(d => d["source"].AsString)
-        //         .Distinct()
-        //         .ToList();
-
-        //     return docs
-        //         .GroupBy(d => d.GetValue("chuyen_de", BsonValue.Create("Khác")).AsString)
-        //         .Select(g =>
-        //         {
-        //             var dict = new Dictionary<string, object>
-        //             {
-        //                 ["Chủ đề"] = g.Key
-        //             };
-
-        //             foreach (var source in allSources)
-        //             {
-        //                 dict[source] = g.Count(x => x.TryGetValue("source", out var v) && v == source);
-        //             }
-
-        //             return dict;
-        //         }).ToList();
-        // }
-
-        // private List<object> GroupArticles(List<BsonDocument> docs)
-        // {
-        //     return docs
-        //         .GroupBy(d => d.GetValue("chuyen_de", BsonValue.Create("Khác")).AsString)
-        //         .Select(g => new
-        //         {
-        //             category = g.Key.ToUpperInvariant(),
-        //             data = g.Select(d => new
-        //             {
-        //                 title = d.GetValue("title", BsonValue.Create("(Không tiêu đề)")).AsString,
-        //                 content = d.GetValue("content", "").AsString,
-        //                 author = d.GetValue("author", "").AsString,
-        //                 createdAt = d.TryGetValue("timestamp", out var tsVal) && tsVal.IsValidDateTime
-        //                     ? tsVal.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")
-        //                     : "",
-        //                 articleUrl = d.GetValue("articleUrl", "").AsString,
-        //                 image = d.GetValue("image", "").AsString
-        //             }).ToList()
-        //         }).ToList<object>();
-        // }
-
-
     }
 }

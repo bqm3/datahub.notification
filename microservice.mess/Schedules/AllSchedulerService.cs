@@ -1,6 +1,7 @@
 using microservice.mess.Models;
 using microservice.mess.Models.Message;
 using microservice.mess.Repositories;
+using microservice.mess.Interfaces;
 using microservice.mess.Services;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -25,8 +26,6 @@ namespace microservice.mess.Schedules
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-
-
             while (!stoppingToken.IsCancellationRequested)
             {
                 using var scope = _scopeFactory.CreateScope();
@@ -35,25 +34,22 @@ namespace microservice.mess.Schedules
                 var mailService = scope.ServiceProvider.GetRequiredService<MailService>();
                 var zaloService = scope.ServiceProvider.GetRequiredService<ZaloService>();
                 var signetService = scope.ServiceProvider.GetRequiredService<SignetService>();
-                var notifyService = scope.ServiceProvider.GetRequiredService<NotificationService>();
+                // var notifyService = scope.ServiceProvider.GetRequiredService<NotificationService>();
 
                 var vnTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
                 var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vnTimeZone);
-                _logger.LogInformation("Đang kiểm tra lịch gửi lúc {now}", now);
 
                 var dueSchedules = await repo.GetDueSchedulesAsync(now);
-                _logger.LogInformation("Có {count} lịch đến hạn gửi", dueSchedules.Count);
-
+                _logger.LogInformation("{now} Có {count} lịch tồn tại", now, dueSchedules.Count);
 
                 foreach (var item in dueSchedules)
                 {
                     if (!ShouldSendEmail(item, now)) continue;
 
-                    await SendScheduledMessageAsync(
-                        item, now, mailService, zaloService, signetService, repo, notifyService);
+                    await SendScheduledMessageAsync(item, now, mailService, zaloService, signetService, repo);
                 }
 
-                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(300), stoppingToken);
             }
         }
 
@@ -63,66 +59,70 @@ namespace microservice.mess.Schedules
             MailService mailService,
             ZaloService zaloService,
             SignetService signetService,
-            ScheduledAllRepository repo,
-            NotificationService notifyService
-        )
+            ScheduledAllRepository repo
+            // NotificationService notifyService
+            )
         {
             using var scope = _scopeFactory.CreateScope();
 
-            var stepRunner = scope.ServiceProvider.GetRequiredService<StepRunnerService>();
-            foreach (var channel in item.Channels)
+            if (string.IsNullOrWhiteSpace(item.Channel))
             {
-                if (item.ChannelStatus.TryGetValue(channel.ToString(), out bool isSent) && isSent)
-                    continue;
+                _logger.LogWarning("Channel không hợp lệ: {channel}", item.Channel);
+                return;
+            }
 
-                try
+            if (item.ChannelStatus)
+                return;
+
+            try
+            {
+                var context = new ScheduleContext
+{
+    Schedule = item,
+    Channel = item.Channel,
+    Services = scope.ServiceProvider
+};
+                // 1. Gọi bước resolve mergeFields trước
+                var resolver = scope.ServiceProvider.GetRequiredService<ResolveScheduleFieldStep>();
+                await resolver.ExecuteAsync(context);
+
+                // 2. Gọi FormatDataMailStep — sẽ tạo mailData từ mergeFields
+                var formatter = scope.ServiceProvider.GetRequiredService<FormatDataMailStep>();
+                await formatter.ExecuteAsync(context);
+
+                // 2. Gọi bước gửi tương ứng
+                IMessageStep resolveStep = item.Channel switch
+{
+    "email" => scope.ServiceProvider.GetRequiredService<SendToMailStep>(),
+    // "zalo" => scope.ServiceProvider.GetRequiredService<SendToZaloStep>(),
+    // "signet" => scope.ServiceProvider.GetRequiredService<SendToSignetStep>(),
+    _ => throw new NotSupportedException($"Channel {item.Channel} is not supported.")
+};
+
+                await resolveStep.ExecuteAsync(context);
+
+
+                item.ChannelStatus = true;
+
+                if (item.Recurrence == "DAILY" &&
+                    item.LastSentAt.HasValue &&
+                    item.LastSentAt.Value.Date != now.Date)
                 {
-                    bool sent = false;
-                    if (!item.Steps.TryGetValue(channel.ToString().ToLower(), out var steps) || steps.Count == 0)
-                    {
-                        _logger.LogWarning("Không có step cho channel {channel}", channel);
-                        continue;
-                    }
-
-                    var context = new ScheduleContext
-                    {
-                        Schedule = item,
-                        Channel = channel,
-                        Services = _scopeFactory.CreateScope().ServiceProvider
-                    };
-
-                    await stepRunner.RunStepsAsync(steps, context);
-                    sent = true;
-
-                    if (sent)
-                    {
-                        item.ChannelStatus[channel.ToString()] = true;
-
-                        if (item.Recurrence == RecurrenceType.Daily &&
-                            item.LastSentAt.HasValue &&
-                            item.LastSentAt.Value.Date != now.Date)
-                        {
-                            foreach (var ch in item.Channels)
-                                item.ChannelStatus[ch.ToString()] = false;
-
-                            item.ChannelStatus[channel.ToString()] = true;
-                        }
-
-                        item.LastSentAt = now;
-
-                        if (item.Recurrence == RecurrenceType.Once &&
-                            item.Channels.All(c => item.ChannelStatus.TryGetValue(c.ToString(), out bool status) && status))
-                        {
-                            item.IsSent = true;
-                        }
-
-                        await repo.UpdateAsync(item.Id, item);
-                    }
+                    item.ChannelStatus = true;
                 }
-                catch (Exception ex)
+
+                item.LastSentAt = now;
+
+                if (item.Recurrence == "ONCE")
                 {
-                    _logger.LogError(ex, "Gửi thất bại cho {channel} - Id: {id}", channel, item.Id);
+                    item.IsSent = true;
                 }
+
+                await repo.UpdateAsync(item.Id, item);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Gửi thất bại cho {channel} - Id: {id}", item.Channel, item.Id);
             }
         }
 
@@ -136,7 +136,6 @@ namespace microservice.mess.Schedules
             if (!email.LastSentAt.HasValue) return false;
 
             var last = email.LastSentAt.Value;
-
             return last.Date == now.Date &&
                    email.TimesOfDay?.Any(t => IsSameTime(last.TimeOfDay, t)) == true;
         }
@@ -145,15 +144,19 @@ namespace microservice.mess.Schedules
         {
             return email.Recurrence switch
             {
-                RecurrenceType.Once => !email.IsSent && now >= email.ScheduledTime,
-                RecurrenceType.Daily => email.TimesOfDay?.Any(t => IsSameTime(now.TimeOfDay, t)) == true &&
-                                        !WasAlreadySentToday(email, now),
-                RecurrenceType.Weekly or RecurrenceType.Custom =>
-                    email.DaysOfWeek?.Contains(now.DayOfWeek) == true &&
+                "ONCE" => !email.IsSent && now >= email.ScheduledTime,
+
+                "DAILY" => email.TimesOfDay?.Any(t => IsSameTime(now.TimeOfDay, t)) == true &&
+                           !WasAlreadySentToday(email, now),
+
+                "WEEKLY" or "CUSTOM" =>
+                    email.DaysOfWeek?.Contains(now.DayOfWeek.ToString()) == true &&
                     email.TimesOfDay?.Any(t => IsSameTime(now.TimeOfDay, t)) == true &&
                     !WasAlreadySentToday(email, now),
+
                 _ => false
             };
         }
+
     }
 }

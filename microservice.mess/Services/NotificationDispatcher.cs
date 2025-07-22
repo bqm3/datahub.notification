@@ -72,6 +72,17 @@ namespace microservice.mess.Services
                         if (item.Signet == null) continue;
                         filteredItem.Signet = item.Signet;
                         break;
+                        
+                    case "slack":
+                        if (item.Slack == null) continue;
+                        filteredItem.Slack = item.Slack;
+                        break;
+
+                    case "tele":
+                        if (item.Tele == null) continue;
+                        filteredItem.Tele = item.Tele;
+                        break;
+                    
 
                     // case "signalr":
                     //     if (item.SignalR != null)
@@ -87,15 +98,6 @@ namespace microservice.mess.Services
                     //     }
                     //     continue;
 
-                    case "slack":
-                        if (!string.IsNullOrEmpty(item.Slack?.Message))
-                        {
-                            await _slackService.SendMessageAsync(item.Slack.Message);
-                            _logger.LogInformation("Sent to Slack: {msg}", item.Slack.Message);
-                        }
-                        continue;
-
-                    case "push":
                     case "sms":
                         _logger.LogWarning("MessageType '{type}' chưa được hỗ trợ xử lý.", messageType);
                         continue;

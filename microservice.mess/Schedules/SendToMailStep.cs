@@ -29,18 +29,32 @@ namespace microservice.mess.Schedules
         {
             try
             {
+                if (!context.Items.TryGetValue("mergeFields", out var mergeFieldsObj))
+                    throw new InvalidOperationException("Missing 'mergeFields' in context.");
+
                 if (!context.Items.TryGetValue("mailData", out var mailDataObj))
                     throw new InvalidOperationException("Missing or invalid 'mailData' in context.");
 
-                var mailData = (dynamic)mailDataObj;
+                var rawMergeFields = (Dictionary<string, object>)mergeFieldsObj;
+                var mergeFields = rawMergeFields.ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => kvp.Value?.ToString() ?? string.Empty
+                );
+
+                var mailData = (MailPayload)mailDataObj;
+
+                // Áp dụng các giá trị mergeFields vào nội dung BodyHtml
+                string body = ReplacePlaceholders(mailData.BodyHtml, mergeFields);
 
                 var request = new SendMailByNameRequest
                 {
                     Name = context.Schedule.Name,
-                    Subject = context.Schedule.Subject,
-                    From = context.Schedule.From,
-                    To = ((IEnumerable<string>)mailData.Receivers)?.ToList() ?? new List<string>(),
-                    Data = ExtractPlaceholders(mailData.BodyHtml),
+                    Subject = mailData.Subject,
+                    From = mailData.From ,
+                    To = mailData.To ?? new List<string>(),
+                    Data = mergeFields,
+                    BodyHtml = body,
+                    Attachments = mailData.Attachments
                 };
 
                 await _mailService.SendEmailAsync(request);
@@ -50,6 +64,19 @@ namespace microservice.mess.Schedules
                 _logger.LogError(ex, "Error in SendToMailStep.ExecuteAsync");
                 throw;
             }
+        }
+
+        private string ReplacePlaceholders(string html, Dictionary<string, string> fields)
+        {
+            if (string.IsNullOrEmpty(html) || fields == null)
+                return html;
+
+            foreach (var field in fields)
+            {
+                html = html.Replace($"{{{{{field.Key}}}}}", field.Value ?? string.Empty);
+            }
+
+            return html;
         }
 
 
